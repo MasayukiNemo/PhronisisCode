@@ -38,7 +38,7 @@ def check_footer(path):
 
 def check_core_sections(path):
     """phronisis.md の必須セクション存在チェック"""
-    if "phronisis" not in path:
+    if not path.endswith("phronisis_code.md") and not path.endswith("phronisis.md"):
         return None
     with open(path, "r", encoding="utf-8") as f:
         content = f.read()
