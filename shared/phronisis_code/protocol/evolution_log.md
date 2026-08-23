@@ -20,3 +20,9 @@
 - P1修正: 自己検証80%をbrief必須項目通過率と定義、招集基準バイナリ化、Hayatoゲート4点を機械判定（空欄FAIL/PASS/WARN/BLOCK）、ループ3回一本化（再アンカー含む）、fast-path但し書き化、Artemis見積3行追加
 - 憲章に手動cherry-pick記録ルールと削った3柱の思想的理由を追記
 - Hayato二巡目で残BLOCK（utf8_check残骸/テンプレートのapollo/chronos/conduct.md参照）を検出し再修正
+
+## v1.0-fix2 (2026-08-23)
+
+- health_check昇格（a14806c）: `shared/phronisis_code/orchestration_flow_code.md:120` に `python scripts/code_health_check.py --no-color` 必須化を Hayatoゲート内に1行追記、 `hooks/pre-push:14` に python_run.sh 経由の BLOCK 配線を追加
+- --help修正（b18b998）: `scripts/code_health_check.py:4,215` の em dash（—）を - に置換し `python scripts/code_health_check.py --help` が Windows cp932 で exit 0 になることを再検証
+- hygiene: `git remote` の平文 token（ghp_）を除去し `https://github.com/MasayukiNemo/PhronisisCode.git` に正規化、露出済み token は GitHub 側で revoke 要。 `orchestration_flow_code.md` に3ゲート表を追記し追従性を向上

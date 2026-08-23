@@ -119,6 +119,14 @@ Hayatoゲートは「手続き検証 + 致命傷検出」に絞る。スタイ�
 - 発動タイミング: 中間軽量チェック（5行以内）+ 最終手続き検証（完結時）の2回のみ。常時ループはしない
 - 必須実行: `python scripts/code_health_check.py --no-color` が exit 0 であることを必須とする。失敗時は Hayatoゲート観点2（致命傷）に該当し BLOCK とする
 
+- 3ゲート可視化:
+
+  | Hook | タイミング | チェック | 失敗時 |
+  |------|-----------|---------|--------|
+  | pre-commit | commit時 | `hooks/utf8_check.py`（UTF-8破損） | BLOCK |
+  | pre-push | push時 | `hooks/handover_check.py`（handover整合性） | BLOCK |
+  | pre-push | push時 | `scripts/code_health_check.py --no-color`（5検査） | BLOCK |
+
 **ループ制御（大局観維持・近視眼防止）:**
 
 - 修正ループ上限: 3回（再アンカーを含む。除外なし）
