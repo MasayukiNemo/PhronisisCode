@@ -45,15 +45,15 @@
 
 | 論点 | 選んだ案 | 潰した案 | 理由 |
 |------|---------|---------|------|
-| 配線先: pre-push vs pre-commit |  |  |  |
-| 失敗時の扱い: WARN vs BLOCK |  |  |  |
-| --help 修正: em dash 置換 vs エンコーディング対策 |  |  |  |
-| 招集判断: Gaia を呼ぶか |  |  |  |
-| 招集判断: Hermes を呼ぶか |  |  |  |
-| 招集判断: Artemis を呼ぶか |  |  |  |
-| 招集判断: Daedalus を呼ぶか |  |  |  |
-| 招集判断: Metis を呼ぶか |  |  |  |
-| 招集判断: Athena を呼ぶか |  |  |  |
+| 配線先: pre-push vs pre-commit | pre-push | pre-commit | push時で頻度低く摩擦小。pre-commitはutf8_checkで既に軽量gateあり。根本さんの「苦労は逃げろ」に合致 |
+| 失敗時の扱い: WARN vs BLOCK | BLOCK | WARN | 宣言と実体の一致を機械で強制。handover_checkもBLOCKで整合。WARNは見逃しを生む |
+| --help 修正: em dash 置換 vs エンコーディング対策 | em dash→-置換 | stdout utf-8化等の対策 | 最もシンプルで根本解決。b18b998で既に実証、cp932で通ることを再検証 |
+| 招集判断: Gaia を呼ぶか | 呼ばない | 呼ぶ | 設計2案は深層思考で収束、アーキテクチャ分岐なし |
+| 招集判断: Hermes を呼ぶか | 呼ぶ（Kai代行） | 呼ばない | orchestration_flowとhooksの現行配線を事実確認する必要 |
+| 招集判断: Artemis を呼ぶか | 呼ばない | 呼ぶ | 変更2ファイルで依存単純、タスク分解の要なし |
+| 招集判断: Daedalus を呼ぶか | 呼ぶ（Kai代行） | 呼ばない | --helpバグ修正とhooks実装が核、バグ・セキュリティ視点必須 |
+| 招集判断: Metis を呼ぶか | 呼ぶ（Kai代行） | 呼ばない | 実装を伴うタスクは原則招集、可読性・保守性3観点あり |
+| 招集判断: Athena を呼ぶか | 呼ぶ（Kai代行） | 呼ばない | Hermes/Daedalus/Metisの出力を統合し昇格全体を収束 |
 
 ## 検証方法
 
