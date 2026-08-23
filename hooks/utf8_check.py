@@ -6,8 +6,8 @@ def put(s):
     sys.stdout.buffer.write(b'\n')
     sys.stdout.buffer.flush()
 
-CORE_FILES = [".opencore/rules/phronisis.md", "knowledge/handover.md", "AGENTS.md"]
-PHRO_MANDATORY = ["最上位原則", "構成", "判断の三層構造"]
+CORE_FILES = [".opencore/rules/phronisis_code.md", "knowledge/handover.md", "AGENTS.md"]
+PHRO_MANDATORY = ["最上位原則", "構成", "判断の基準"]
 
 def get_staged_files():
     r = subprocess.run(["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"], capture_output=True, text=True)
@@ -38,7 +38,7 @@ def check_footer(path):
 
 def check_core_sections(path):
     """phronisis.md の必須セクション存在チェック"""
-    if not path.endswith("phronisis.md"):
+    if "phronisis" not in path:
         return None
     with open(path, "r", encoding="utf-8") as f:
         content = f.read()
