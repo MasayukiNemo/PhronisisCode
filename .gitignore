@@ -1,0 +1,7 @@
+node_modules/
+.DS_Store
+*.log
+.locks/
+tmp/
+.sheet_id
+.sheet_id.json

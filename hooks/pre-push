@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -o pipefail
+# pre-push hook: handover.md SHA 検証 + session_log整合性 + coreファイル差分
+HOOK_DIR="$(dirname "$0")"
+PROJECT_DIR="$(cd "$HOOK_DIR/.." && pwd)"
+
+# 1. handover check
+bash "$HOOK_DIR/python_run.sh" "$HOOK_DIR/handover_check.py"
+HOOK_EXIT=$?
+
+# Google Sheets同期は2026-08-15に廃止（使用していない・SC遅延の原因のため。根本さん決定）
+
+exit $HOOK_EXIT

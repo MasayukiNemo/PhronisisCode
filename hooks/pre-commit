@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# pre-commit hook: UTF-8破損 + フッタ検証
+bash "$(dirname "$0")/python_run.sh" "$(dirname "$0")/utf8_check.py"
