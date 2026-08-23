@@ -9,10 +9,11 @@ PhronisisCore の handover.md から分岐した軽量版であり、独立し�
 
 ```
 .opencode/rules/phronisis_code.md  # 憲章 v1.0
-opencode.json                       # 6神+hayato+yuna
-shared/phronisis_code/              # 本体
-knowledge/                          # 軽量知識ベース
-tasks/                              # タスクワークスペース
+opencode.json                       # 6神プール+hayato+yuna（プール。常時全起動しない）
+shared/phronisis_code/              # 本体（orchestration_flow_code.md + agents/ + protocol/）
+knowledge/                          # 軽量知識ベース（handover.md / conductor_profile_lite.md / decisions/ / session_log/ / code_knowledge/）
+tasks/                              # タスクワークスペース（_template/brief.md plan.md log.md + deep_thought.md は実行時に生成）
+hooks/                              # pre-commit/pre-push + python_run.sh/utf8_check.py/handover_check.py
 ```
 
 ## 環境定義

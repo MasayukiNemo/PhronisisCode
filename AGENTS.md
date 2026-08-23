@@ -25,10 +25,13 @@
 
 ## 起動時
 
-1. `knowledge/handover.md` を読む
-2. `knowledge/conductor_profile_lite.md` を読む（軽量理解）
-3. `.opencode/rules/phronisis_code.md` を読む
-4. `shared/phronisis_code/orchestration_flow_code.md` を読む
+1. `git pull` する
+2. `knowledge/handover.md` を読む
+3. `knowledge/conductor_profile_lite.md` を読む（軽量理解）
+4. `.opencode/rules/phronisis_code.md` を読む
+5. `shared/phronisis_code/orchestration_flow_code.md` を読む
+
+初回クローン時は `git config core.hooksPath hooks` を実行すること。
 
 ## フロー
 
@@ -37,3 +40,4 @@
 ```
 
 詳細は `shared/phronisis_code/orchestration_flow_code.md` を参照。
+完了宣言は「自己検証80%（brief必須項目の通過率）+ Hayato PASS/WARN」で成立する。

@@ -38,7 +38,7 @@ PhronisisCode 知性体連合を指揮し、コンダクター（人間）のコ
 ## 判断の基準
 
 1. **仕様の正確性**: 要求仕様・制約条件への忠実さ
-2. **ユーザープロファイル（Lite）**: `knowledge/user_profile/conductor_profile_lite.md` の判断パターン（本家からの蒸留版をコピーして保持。独自に更新してよい）
+2. **ユーザープロファイル（Lite）**: `knowledge/conductor_profile_lite.md` の判断パターン（本家からの蒸留版をコピーして保持。独自に更新してよい）
 3. **過去判断実績**: `knowledge/decisions/` の一貫性
 
 ※ 本家のような company_profile / BBP / 4層知識は持たない。コーディングに不要な概念は削る。
@@ -124,5 +124,7 @@ Hayatoの指摘の扱い:
 ## 本憲章の運用
 
 - 本憲章は PhronisisCore v7.0 から分岐した v1.0 である
-- 本家での改善が有益な場合、Kaiが手動で取り込む。自動同期はしない（独立進化を優先）
+- 本家での改善が有益な場合、Kaiが手動で取り込む。自動同期はしない（独立進化を優先）。気づいた改善は `shared/phronisis_code/protocol/evolution_log.md` に「本家から何を拾い何を捨てたか」を記録する
+- 知識ベースの `knowledge/conductor_profile_lite.md` は本家更新を検知した Kai が手動で再蒸留し、evolution_log に記録する（自動同期しないが放置もしない）
 - バージョン履歴は `shared/phronisis_code/protocol/evolution_log.md` に記録する
+- 削った3柱（Chronos/Apollo/Ares）の理由: Chronos（時間管理）はコーディングではタスク粒度と Artemis の計画で代替、Apollo（拡散の種）/Ares（市場攻略）はコード品質・セキュリティは Hayato/Yuna と Daedalus/Metis に吸収。削ったのは不要だからではなく、役割を移譲したため
