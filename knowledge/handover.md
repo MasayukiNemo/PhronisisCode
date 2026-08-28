@@ -21,6 +21,7 @@ hooks/                              # pre-commit/pre-push + python_run.sh/utf8_c
 | ホスト名 | 環境 | 備考 |
 |---------|------|------|
 | DESKTOP-QCLBNKI | 開発拠点 | 初期構築端末 |
+| BUF-STMarketingnoMacBook-Air.local | Mac (macOS Tahoe / arm64) | homebrew 5.1.11, python 3.12.14, git 2.54.0, gh 2.98.0, opencode-desktop 1.18.25, Code 検証済み (5/5 PASS) |
 
 ## セッションログ（要約）
 
