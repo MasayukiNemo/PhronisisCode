@@ -27,7 +27,8 @@ final class EventTapManager: ObservableObject {
     var isDebugLogEnabled: Bool { debugLogEnabled }
     private var debugLogFile: FileHandle?
     private var isWarping = false
-    private var warpExpectTime: CFTimeInterval = 0
+    private var warpRemainderX: Double = 0
+    private var warpRemainderY: Double = 0
 
     // 相関窓: キーボード由来と区別するためのタイムスタンプ（将来拡張）
     private var lastIOHIDTimestamp: UInt64 = 0
@@ -354,13 +355,10 @@ final class EventTapManager: ObservableObject {
             return Unmanaged.passUnretained(event)
 
         case .mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged:
-            // Warpで生成された合成イベントはスケールせず素通し
             if isWarping {
-                // Warp直後の1イベントは合成なのでスキップ。0.05秒以内の連続は同様に素通し
-                if CFAbsoluteTimeGetCurrent() - warpExpectTime < 0.05 {
-                    return Unmanaged.passUnretained(event)
-                }
+                // Warp直後の合成1イベントのみ素通し（0.05秒窓は次の実移動まで潰すため1イベント限定に）
                 isWarping = false
+                return Unmanaged.passUnretained(event)
             }
             let dx = event.getIntegerValueField(.mouseEventDeltaX)
             let dy = event.getIntegerValueField(.mouseEventDeltaY)
@@ -371,22 +369,36 @@ final class EventTapManager: ObservableObject {
             if precise.isActive {
                 let s = min(max(MappingStore.shared.settings.preciseScale, 0.25), 1.0)
                 if s < 0.99 && (dx != 0 || dy != 0) {
-                    scaledDx = Int64(Double(dx) * s)
-                    scaledDy = Int64(Double(dy) * s)
+                    // 小数蓄積で1-3pxの消失を防止
+                    let rawDx = Double(dx) + warpRemainderX
+                    let rawDy = Double(dy) + warpRemainderY
+                    let ndx = rawDx * s
+                    let ndy = rawDy * s
+                    scaledDx = Int64(ndx)
+                    scaledDy = Int64(ndy)
+                    warpRemainderX = ndx - Double(scaledDx)
+                    warpRemainderY = ndy - Double(scaledDy)
                     let cgCur = event.location
                     let inv = MappingStore.shared.settings.preciseInverted
                     let nloc: CGPoint
                     if inv {
-                        nloc = CGPoint(x: cgCur.x - CGFloat(dx + scaledDx), y: cgCur.y - CGFloat(dy + scaledDy))
+                        nloc = CGPoint(x: cgCur.x - CGFloat(Double(dx) + Double(scaledDx)), y: cgCur.y - CGFloat(Double(dy) + Double(scaledDy)))
                     } else {
-                        nloc = CGPoint(x: cgCur.x + CGFloat(scaledDx - dx), y: cgCur.y + CGFloat(scaledDy - dy))
+                        nloc = CGPoint(x: cgCur.x + CGFloat(Double(scaledDx) - Double(dx)), y: cgCur.y + CGFloat(Double(scaledDy) - Double(dy)))
                     }
                     isWarping = true
-                    warpExpectTime = CFAbsoluteTimeGetCurrent()
                     CGWarpMouseCursorPosition(nloc)
                     didScale = true
                     consumedAndWarped = true
+                } else if dx == 0 && dy == 0 {
+                    // 微動で0になった場合も remainder は保持
+                } else {
+                    warpRemainderX = 0
+                    warpRemainderY = 0
                 }
+            } else {
+                warpRemainderX = 0
+                warpRemainderY = 0
             }
             let now2 = CFAbsoluteTimeGetCurrent()
             if now2 - lastDeltaTime > 0.08 {

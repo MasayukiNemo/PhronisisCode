@@ -7,6 +7,8 @@ final class StatusItemController: ObservableObject {
     private var statusItem: NSStatusItem?
     private var cancellables = Set<AnyCancellable>()
 
+    private var toggleItem: NSMenuItem?
+
     func setup() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         self.statusItem = item
@@ -15,6 +17,10 @@ final class StatusItemController: ObservableObject {
 
         PreciseEngine.shared.$isActive.sink { [weak self] active in
             self?.updateIcon(isPrecise: active)
+        }.store(in: &cancellables)
+        // 精密モード切替のメニュー有効性を監視（hold時はトグル不可を明示）
+        MappingStore.shared.$settings.sink { [weak self] _ in
+            self?.updateToggleItemState()
         }.store(in: &cancellables)
 
         if let button = item.button {
@@ -44,7 +50,8 @@ final class StatusItemController: ObservableObject {
         menu.addItem(preciseItem)
         let toggleItem = NSMenuItem(title: "精密 ON/OFF 切替", action: #selector(togglePrecise), keyEquivalent: "")
         toggleItem.target = self
-        toggleItem.isEnabled = true
+        self.toggleItem = toggleItem
+        updateToggleItemState()
         menu.addItem(toggleItem)
         menu.addItem(NSMenuItem.separator())
         let quitItem = NSMenuItem(title: "終了", action: #selector(quit), keyEquivalent: "q")
@@ -92,9 +99,28 @@ final class StatusItemController: ObservableObject {
         SettingsWindowController.shared.show()
     }
 
+    private func updateToggleItemState() {
+        guard let item = toggleItem else { return }
+        let store = MappingStore.shared
+        if !store.settings.preciseEnabled {
+            item.title = "精密 ON/OFF 切替（無効）"
+            item.isEnabled = false
+        } else if store.settings.preciseMode == .hold {
+            item.title = "精密 ON/OFF 切替（ホールド中は不可）"
+            item.isEnabled = false
+        } else {
+            item.title = "精密 ON/OFF 切替"
+            item.isEnabled = true
+        }
+    }
+
     @objc private func togglePrecise() {
         let store = MappingStore.shared
         guard store.settings.preciseEnabled else { return }
+        guard store.settings.preciseMode == .toggle else {
+            NSSound.beep()
+            return
+        }
         PreciseEngine.shared.toggle()
     }
 
