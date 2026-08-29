@@ -23,6 +23,9 @@ final class EventTapManager: ObservableObject {
     private var lastLogTime: CFTimeInterval = 0
     private var lastTiltTime: CFTimeInterval = 0
     private var lastDeltaTime: CFTimeInterval = 0
+    private var debugLogEnabled = false
+    var isDebugLogEnabled: Bool { debugLogEnabled }
+    private var debugLogFile: FileHandle?
 
     // 相関窓: キーボード由来と区別するためのタイムスタンプ（将来拡張）
     private var lastIOHIDTimestamp: UInt64 = 0
@@ -133,6 +136,20 @@ final class EventTapManager: ObservableObject {
             return CGPreflightPostEventAccess()
         }
         return AXIsProcessTrusted()
+    }
+
+    func setDebugLogEnabled(_ enabled: Bool) {
+        debugLogEnabled = enabled
+        if enabled {
+            let path = "/tmp/bstbb700_debug.log"
+            FileManager.default.createFile(atPath: path, contents: nil)
+            debugLogFile = FileHandle(forWritingAtPath: path)
+            NSLog("[BSTBB700] debug log enabled at \(path)")
+        } else {
+            try? debugLogFile?.close()
+            debugLogFile = nil
+            NSLog("[BSTBB700] debug log disabled")
+        }
     }
 
     // MARK: - Core routing
@@ -339,9 +356,10 @@ final class EventTapManager: ObservableObject {
             let dy = event.getIntegerValueField(.mouseEventDeltaY)
             var scaledDx = dx
             var scaledDy = dy
+            var didScale = false
             if precise.isActive {
                 let s = min(max(MappingStore.shared.settings.preciseScale, 0.25), 1.0)
-                if s < 0.99 {
+                if s < 0.99 && (dx != 0 || dy != 0) {
                     scaledDx = Int64(Double(dx) * s)
                     scaledDy = Int64(Double(dy) * s)
                     event.setIntegerValueField(.mouseEventDeltaX, value: scaledDx)
@@ -349,6 +367,7 @@ final class EventTapManager: ObservableObject {
                     let loc = event.location
                     let nloc = CGPoint(x: loc.x + CGFloat(Double(dx) * (s - 1.0)), y: loc.y + CGFloat(Double(dy) * (s - 1.0)))
                     event.location = nloc
+                    didScale = true
                 }
             }
             let now2 = CFAbsoluteTimeGetCurrent()
@@ -357,6 +376,10 @@ final class EventTapManager: ObservableObject {
                 DispatchQueue.main.async { [dx, dy, scaledDx, scaledDy] in
                     self.lastMouseDelta = (dx, dy, scaledDx, scaledDy, precise.isActive)
                 }
+            }
+            if didScale, debugLogEnabled, let fh = debugLogFile {
+                let line = String(format: "%.3f precise dx=%d dy=%d -> %d %d scale=%.2f loc=%.1f,%.1f\n", now2, dx, dy, scaledDx, scaledDy, MappingStore.shared.settings.preciseScale, event.location.x, event.location.y)
+                if let data = line.data(using: .utf8) { try? fh.write(contentsOf: data) }
             }
             return Unmanaged.passUnretained(event)
 

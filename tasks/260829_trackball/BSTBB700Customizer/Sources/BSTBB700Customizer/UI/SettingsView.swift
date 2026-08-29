@@ -1,5 +1,6 @@
 import SwiftUI
 import ServiceManagement
+import AppKit
 
 struct SettingsView: View {
     @ObservedObject private var store = MappingStore.shared
@@ -128,9 +129,14 @@ struct SettingsView: View {
                     Text("カーソル速度の検証").font(.caption).bold()
                     Text("精密ONでトラックボールを転がすと、カーソルが \(Int(store.settings.preciseScale*100))% の速度で動きます。下の数値とバーで、実際に遅くなっているかを確認できます。").font(.caption2).foregroundStyle(.secondary)
                     PreciseDeltaTestView()
+                    CursorDistanceTestView()
                     HStack(spacing: 8) {
                         Button("HUDを再表示") { HUDController.shared.flash(active: precise.isActive) }
-                        Button("メニューバーを確認") { NSApp.activate(ignoringOtherApps: true) }
+                        Button("デバッグログON/OFF") {
+                            let en = !EventTapManager.shared.isDebugLogEnabled
+                            EventTapManager.shared.setDebugLogEnabled(en)
+                        }
+                        Button("ログを開く") { NSWorkspace.shared.open(URL(fileURLWithPath: "/tmp/bstbb700_debug.log")) }
                     }.font(.caption2)
                 }
                 .padding(8).background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .windowBackgroundColor))).overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.2)))
@@ -210,7 +216,6 @@ struct PreciseDeltaTestView: View {
                 Spacer()
                 Text("raw: \(tap.lastMouseDelta.dx),\(tap.lastMouseDelta.dy) → scaled: \(tap.lastMouseDelta.scaledDx),\(tap.lastMouseDelta.scaledDy)").font(.caption2).monospacedDigit().foregroundStyle(.secondary)
             }
-            // バーで視覚的に
             GeometryReader { geo in
                 let w = geo.size.width
                 let rawLen = min(CGFloat(abs(tap.lastMouseDelta.dx)) * 2.0, w)
@@ -230,6 +235,40 @@ struct PreciseDeltaTestView: View {
             Text("トラックボールを転がすとバーが伸びます。精密ONでは scaled のバーが raw より短くなれば、確実に遅くなっています。").font(.caption2).foregroundStyle(.secondary)
         }
         .padding(6).background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: .controlBackgroundColor)))
+    }
+}
+
+struct CursorDistanceTestView: View {
+    @State private var isMeasuring = false
+    @State private var startPos: CGPoint = .zero
+    @State private var distance: CGFloat = 0
+    @State private var timer: Timer?
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("実カーソル移動距離の計測").font(.caption2).bold()
+            Text("「計測開始」を押して2秒以内にトラックボールを一定距離だけ転がし、OFFとONで同じ操作をした時の移動ピクセル数を比較します。").font(.caption2).foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                Button(isMeasuring ? "計測中..." : "計測開始") {
+                    startPos = NSEvent.mouseLocation
+                    distance = 0
+                    isMeasuring = true
+                    timer?.invalidate()
+                    timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+                        let cur = NSEvent.mouseLocation
+                        distance = hypot(cur.x - startPos.x, cur.y - startPos.y)
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                        timer?.invalidate()
+                        isMeasuring = false
+                    }
+                }.disabled(isMeasuring)
+                Text(String(format: "距離: %.0f px", distance)).font(.caption).monospacedDigit()
+                Spacer()
+                Text(EventTapManager.shared.isRunning ? "Tap動作中" : "Tap停止").font(.caption2).foregroundStyle(EventTapManager.shared.isRunning ? .green : .red)
+            }
+            Text("精密OFFで計測した距離と、ON（25%）で同じ操作をした距離が約1/4になれば、実カーソルが遅くなっています。").font(.caption2).foregroundStyle(.secondary)
+        }
+        .padding(6).background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: .controlBackgroundColor).opacity(0.6)))
     }
 }
 
