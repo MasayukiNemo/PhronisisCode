@@ -342,6 +342,10 @@ final class EventTapManager: ObservableObject {
                     let ndy = Int64(Double(dy) * s)
                     event.setIntegerValueField(.mouseEventDeltaX, value: ndx)
                     event.setIntegerValueField(.mouseEventDeltaY, value: ndy)
+                    // 位置も補正しないと加速が残るためlocationをスケール
+                    let loc = event.location
+                    let nloc = CGPoint(x: loc.x + CGFloat(Double(dx) * (s - 1.0)), y: loc.y + CGFloat(Double(dy) * (s - 1.0)))
+                    event.location = nloc
                 }
             }
             return Unmanaged.passUnretained(event)

@@ -64,13 +64,15 @@ final class StatusItemController: ObservableObject {
             NSLog("[BSTBB700] updateIcon failed: button is nil")
             return
         }
-        // "circle.dotted.scope"はmacOS 14+でしか存在しないためフォールバック
-        let name = isPrecise ? "scope" : "scope"
-        let fallback = isPrecise ? "target" : "circle"
+        let name = isPrecise ? "scope" : "circle"
+        let fallback = isPrecise ? "target" : "circle.dashed"
         let img = NSImage(systemSymbolName: name, accessibilityDescription: isPrecise ? "Precise ON" : "Precise OFF")
             ?? NSImage(systemSymbolName: fallback, accessibilityDescription: "BSTBB700")
+            ?? NSImage(named: NSImage.applicationIconName)
         button.image = img
-        button.contentTintColor = isPrecise ? .systemGreen : nil
+        button.contentTintColor = isPrecise ? .systemGreen : .secondaryLabelColor
+        // ON時はより目立つようにバッジ的に
+        button.needsDisplay = true
         if #available(macOS 13.0, *) {
             statusItem?.isVisible = true
         }

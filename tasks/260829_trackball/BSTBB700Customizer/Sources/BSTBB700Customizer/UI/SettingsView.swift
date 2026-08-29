@@ -115,12 +115,29 @@ struct SettingsView: View {
 
                 HStack(spacing: 8) {
                     Circle().fill(precise.isActive ? Color.green : Color.gray).frame(width: 12, height: 12)
-                    Text(precise.isActive ? "精密 ON（減速中）" : "精密 OFF").font(.caption).foregroundStyle(precise.isActive ? .green : .secondary)
+                    Text(precise.isActive ? "精密 ON（減速中 \(Int(store.settings.preciseScale*100))%）" : "精密 OFF").font(.caption).foregroundStyle(precise.isActive ? .green : .secondary)
                     Spacer()
                     Button(precise.isActive ? "OFFにする" : "ONにする") { precise.toggle() }
                         .disabled(!store.settings.preciseEnabled || store.settings.preciseMode != .toggle)
                 }
                 .padding(8).background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .controlBackgroundColor)))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(precise.isActive ? Color.green.opacity(0.6) : Color.clear, lineWidth: 1))
+
+                // 目に見える動作確認エリア
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("動作確認").font(.caption).bold()
+                    Text("精密ONでトラックボールを転がすと、カーソルが \(Int(store.settings.preciseScale*100))% の速度で動きます。OFFとONを切り替えて同じ距離を転がし、移動量の差を体感してください。").font(.caption2).foregroundStyle(.secondary)
+                    if precise.isActive {
+                        Label("現在 精密ON — メニューバーアイコンが緑、画面右上に「● 精密 ON」オーバーレイが表示されています", systemImage: "eye.fill").font(.caption2).foregroundStyle(.green)
+                    } else {
+                        Label("現在 精密OFF — 通常速度です", systemImage: "eye.slash").font(.caption2).foregroundStyle(.secondary)
+                    }
+                    HStack(spacing: 8) {
+                        Button("HUDを再表示") { HUDController.shared.flash(active: precise.isActive) }
+                        Button("メニューバーを確認") { NSApp.activate(ignoringOtherApps: true) }
+                    }.font(.caption2)
+                }
+                .padding(8).background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .windowBackgroundColor))).overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.2)))
 
                 Label("注意: MVPでは精密モードはグローバル減速です。トラックパッドや他マウスも減速します。将来的にBSTBB700のみに限定するフィルタを追加予定。", systemImage: "info.circle")
                     .font(.caption).foregroundStyle(.secondary)

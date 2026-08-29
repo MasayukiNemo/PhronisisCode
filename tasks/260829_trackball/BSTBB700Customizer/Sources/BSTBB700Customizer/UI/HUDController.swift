@@ -9,6 +9,55 @@ final class HUDController {
 
     func flash(active: Bool) {
         show(text: active ? "精密モード ON" : "精密モード OFF", color: active ? .systemGreen : .systemGray)
+        if active {
+            showPersistent(active: true)
+        } else {
+            hidePersistent()
+        }
+    }
+
+    private var persistentWindow: NSWindow?
+
+    func showPersistent(active: Bool) {
+        if !active { hidePersistent(); return }
+        if persistentWindow == nil {
+            let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 180, height: 28),
+                             styleMask: .borderless, backing: .buffered, defer: false)
+            w.isOpaque = false
+            w.backgroundColor = .clear
+            w.level = .floating
+            w.hasShadow = false
+            w.ignoresMouseEvents = true
+            w.collectionBehavior = [.canJoinAllSpaces, .stationary]
+            w.isReleasedWhenClosed = false
+            let label = NSTextField(labelWithString: "● 精密 ON  ●")
+            label.tag = 999
+            label.alignment = .center
+            label.font = .systemFont(ofSize: 11, weight: .bold)
+            label.textColor = .white
+            let box = NSBox()
+            box.boxType = .custom
+            box.cornerRadius = 8
+            box.fillColor = NSColor.systemGreen.withAlphaComponent(0.92)
+            box.borderWidth = 0
+            let container = NSView(frame: NSRect(x: 0, y: 0, width: 180, height: 28))
+            label.frame = NSRect(x: 0, y: 0, width: 180, height: 28)
+            label.autoresizingMask = [.width, .height]
+            box.frame = container.bounds
+            box.contentView = label
+            container.addSubview(box)
+            w.contentView = container
+            persistentWindow = w
+        }
+        guard let w = persistentWindow, let screen = NSScreen.main else { return }
+        let sf = screen.frame
+        w.setFrameOrigin(NSPoint(x: sf.maxX - 200, y: sf.maxY - 40))
+        w.orderFrontRegardless()
+        w.alphaValue = 1.0
+    }
+
+    func hidePersistent() {
+        persistentWindow?.orderOut(nil)
     }
 
     func show(text: String, color: NSColor) {
