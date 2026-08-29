@@ -71,11 +71,13 @@ final class PreciseEngine: ObservableObject {
     func handleMouseTrigger(button: ButtonID, isDown: Bool) -> Bool {
         guard store.settings.preciseEnabled else { return false }
         let t = store.settings.preciseTrigger
-        let matches: Bool = (t == .mouseForward && button == .forward) || (t == .mouseTiltRight && button == .tiltRight)
+        let matches: Bool = (t == .mouseForward && button == .forward)
+            || (t == .mouseTiltRight && button == .tiltRight)
+            || (t == .mouseTiltLeft && button == .tiltLeft)
+            || (t == .mouseTiltEither && (button == .tiltLeft || button == .tiltRight))
         guard matches else { return false }
-        // チルト右はscrollWheelでupが取れないためholdは不可。toggleにフォールバック
-        if button == .tiltRight, store.settings.preciseMode == .hold {
-            // hold要求だがチルトでは離上イベントがないためtoggleとして扱う
+        // チルトはscrollWheelでupが取れないためholdは不可。toggleにフォールバック
+        if (button == .tiltRight || button == .tiltLeft), store.settings.preciseMode == .hold {
             if isDown { toggle() }
             return true
         }

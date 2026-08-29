@@ -17,6 +17,8 @@ enum PreciseTrigger: String, Codable, CaseIterable, Sendable {
     case capsLock = "capsLock"
     case mouseForward = "mouseForward"
     case mouseTiltRight = "mouseTiltRight"
+    case mouseTiltLeft = "mouseTiltLeft"
+    case mouseTiltEither = "mouseTiltEither"
     case customKey = "customKey"
 
     var display: String {
@@ -28,6 +30,8 @@ enum PreciseTrigger: String, Codable, CaseIterable, Sendable {
         case .capsLock: return "CapsLock"
         case .mouseForward: return "進むボタン"
         case .mouseTiltRight: return "チルト右"
+        case .mouseTiltLeft: return "チルト左"
+        case .mouseTiltEither: return "チルト左右どちらも"
         case .customKey: return "カスタムキー（任意）"
         }
     }
@@ -58,6 +62,7 @@ struct AppSettings: Codable, Sendable {
     var filterByDevice: Bool = false
     var verticalScrollPassthrough: Bool = true
     var preciseCustomKey: KeyCombo? = nil
+    var tiltInverted: Bool = false
 }
 
 // 非MainActorで保持し、UI更新は手動でMainに飛ばす。EventTapコールバックはメインRunLoop上で同期実行されるためロック不要だが念のためNSLockで保護。
@@ -114,6 +119,12 @@ final class MappingStore: ObservableObject {
         if t == .mouseTiltRight, settings.mappings[.tiltRight] != nil {
             return "チルト右が精密トリガーに使われているため、キー割り当てと排他です。"
         }
+        if t == .mouseTiltLeft, settings.mappings[.tiltLeft] != nil {
+            return "チルト左が精密トリガーに使われているため、キー割り当てと排他です。"
+        }
+        if t == .mouseTiltEither, settings.mappings[.tiltLeft] != nil || settings.mappings[.tiltRight] != nil {
+            return "チルト左右が精密トリガーに使われているため、キー割り当てと排他です。"
+        }
         if t == .customKey, settings.preciseCustomKey == nil {
             return "カスタムキーが未設定です。下のキャプチャでキーを割り当ててください。"
         }
@@ -125,6 +136,8 @@ final class MappingStore: ObservableObject {
         switch (settings.preciseTrigger, button) {
         case (.mouseForward, .forward): return true
         case (.mouseTiltRight, .tiltRight): return true
+        case (.mouseTiltLeft, .tiltLeft): return true
+        case (.mouseTiltEither, .tiltLeft), (.mouseTiltEither, .tiltRight): return true
         default: return false
         }
     }

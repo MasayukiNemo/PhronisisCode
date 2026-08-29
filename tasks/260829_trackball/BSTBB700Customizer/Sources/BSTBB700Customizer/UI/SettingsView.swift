@@ -32,14 +32,17 @@ struct SettingsView: View {
 
                 PermissionView()
 
-                VStack(spacing: 10) {
-                    HybridKeyRow(title: "戻る", current: store.mapping(for: .back)) { c in store.setMapping(c, for: .back) }
-                    HybridKeyRow(title: "進む", current: store.mapping(for: .forward)) { c in store.setMapping(c, for: .forward) }
-                    HybridKeyRow(title: "中央押し", current: store.mapping(for: .center)) { c in store.setMapping(c, for: .center) }
-                    Divider()
-                    HybridKeyRow(title: "チルト左", current: store.mapping(for: .tiltLeft)) { c in store.setMapping(c, for: .tiltLeft) }
-                    HybridKeyRow(title: "チルト右", current: store.mapping(for: .tiltRight)) { c in store.setMapping(c, for: .tiltRight) }
-                }
+            VStack(spacing: 10) {
+                HybridKeyRow(title: "戻る", current: store.mapping(for: .back)) { c in store.setMapping(c, for: .back) }
+                HybridKeyRow(title: "進む", current: store.mapping(for: .forward)) { c in store.setMapping(c, for: .forward) }
+                HybridKeyRow(title: "中央押し", current: store.mapping(for: .center)) { c in store.setMapping(c, for: .center) }
+                Divider()
+                HybridKeyRow(title: "チルト左", current: store.mapping(for: .tiltLeft)) { c in store.setMapping(c, for: .tiltLeft) }
+                HybridKeyRow(title: "チルト右", current: store.mapping(for: .tiltRight)) { c in store.setMapping(c, for: .tiltRight) }
+                Toggle("チルト方向を反転（右倒しが左として認識される場合）", isOn: Binding(get: { store.settings.tiltInverted }, set: { v in store.settings.tiltInverted = v; store.save() }))
+                    .font(.caption2).toggleStyle(.switch)
+                Text("Discoveryログで h の符号を確認。右倒しで h が負に出る場合は反転をONに。").font(.caption2).foregroundStyle(.secondary)
+            }
                 .padding(12)
                 .background(RoundedRectangle(cornerRadius: 10).fill(Color(nsColor: .controlBackgroundColor)))
             }
@@ -86,12 +89,12 @@ struct SettingsView: View {
                     })) {
                         Text("トグル（押すたびON/OFF）").tag(PreciseMode.toggle)
                         Text("ホールド（押している間のみ）").tag(PreciseMode.hold)
-                    }.labelsHidden().pickerStyle(.radioGroup)
-                    .disabled(store.settings.preciseTrigger == .mouseTiltRight && store.settings.preciseMode == .hold)
-                }
-                if store.settings.preciseTrigger == .mouseTiltRight {
-                    Label("チルト右はホールド非対応（離上イベントがないため）。トグルのみ推奨。", systemImage: "info.circle").font(.caption2).foregroundStyle(.orange)
-                }
+                }.labelsHidden().pickerStyle(.radioGroup)
+                .disabled((store.settings.preciseTrigger == .mouseTiltRight || store.settings.preciseTrigger == .mouseTiltLeft || store.settings.preciseTrigger == .mouseTiltEither) && store.settings.preciseMode == .hold)
+            }
+            if store.settings.preciseTrigger == .mouseTiltRight || store.settings.preciseTrigger == .mouseTiltLeft || store.settings.preciseTrigger == .mouseTiltEither {
+                Label("チルトはホールド非対応（離上イベントがないため）。トグルのみ推奨。", systemImage: "info.circle").font(.caption2).foregroundStyle(.orange)
+            }
                 if store.settings.preciseTrigger == .capsLock {
                     Label("CapsLockはflagsChangedで判定します。システムのCapsLock動作と競合する場合があります。", systemImage: "info.circle").font(.caption2).foregroundStyle(.secondary)
                 }

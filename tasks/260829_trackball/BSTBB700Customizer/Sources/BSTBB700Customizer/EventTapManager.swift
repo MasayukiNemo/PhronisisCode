@@ -203,11 +203,12 @@ final class EventTapManager: ObservableObject {
             let isVertical = abs(v) >= 0.05
 
             if isHorizontalTilt {
-                let tiltButton: ButtonID = h > 0 ? .tiltRight : .tiltLeft
-                // 精密トリガーがチルト右なら消費
-                if tiltButton == .tiltRight, precise.handleMouseTrigger(button: tiltButton, isDown: true) {
-                    // tiltは押下離上が分かれないため、toggleなら一発、holdなら押下扱い
-                    // holdのリリースは次イベントで? 簡易: tiltはtoggleのみ推奨
+                let inverted = MappingStore.shared.settings.tiltInverted
+                let rawRight = h > 0
+                let isRight = inverted ? !rawRight : rawRight
+                let tiltButton: ButtonID = isRight ? .tiltRight : .tiltLeft
+                // 精密トリガー消費（左右どちらも対応、Eitherなら両方）
+                if precise.handleMouseTrigger(button: tiltButton, isDown: true) {
                     return nil
                 }
                 if store.isPreciseTriggerConsuming(button: tiltButton) {
