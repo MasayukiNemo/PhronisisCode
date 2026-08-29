@@ -65,7 +65,8 @@ struct SettingsView: View {
                     Text("トリガー").frame(width: 80, alignment: .leading)
                     Picker("", selection: Binding(get: { store.settings.preciseTrigger }, set: { v in
                         store.settings.preciseTrigger = v; store.save()
-                        if v == .mouseTiltRight, store.settings.preciseMode == .hold {
+                        let isTilt = v == .mouseTiltRight || v == .mouseTiltLeft || v == .mouseTiltEither
+                        if isTilt, store.settings.preciseMode == .hold {
                             store.settings.preciseMode = .toggle
                             store.save()
                         }
@@ -89,8 +90,8 @@ struct SettingsView: View {
                     })) {
                         Text("トグル（押すたびON/OFF）").tag(PreciseMode.toggle)
                         Text("ホールド（押している間のみ）").tag(PreciseMode.hold)
+                            .disabled(store.settings.preciseTrigger == .mouseTiltRight || store.settings.preciseTrigger == .mouseTiltLeft || store.settings.preciseTrigger == .mouseTiltEither)
                 }.labelsHidden().pickerStyle(.radioGroup)
-                .disabled((store.settings.preciseTrigger == .mouseTiltRight || store.settings.preciseTrigger == .mouseTiltLeft || store.settings.preciseTrigger == .mouseTiltEither) && store.settings.preciseMode == .hold)
             }
             if store.settings.preciseTrigger == .mouseTiltRight || store.settings.preciseTrigger == .mouseTiltLeft || store.settings.preciseTrigger == .mouseTiltEither {
                 Label("チルトはホールド非対応（離上イベントがないため）。トグルのみ推奨。", systemImage: "info.circle").font(.caption2).foregroundStyle(.orange)

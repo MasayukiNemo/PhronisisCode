@@ -57,12 +57,32 @@ struct AppSettings: Codable, Sendable {
     var preciseEnabled: Bool = false
     var preciseTrigger: PreciseTrigger = .f13
     var preciseMode: PreciseMode = .toggle
-    var preciseScale: Double = 0.3  // 0.1 - 1.0 デフォルト30%
+    var preciseScale: Double = 0.3
     var discoveryEnabled: Bool = false
     var filterByDevice: Bool = false
     var verticalScrollPassthrough: Bool = true
     var preciseCustomKey: KeyCombo? = nil
     var tiltInverted: Bool = false
+
+    enum CodingKeys: String, CodingKey {
+        case mappings, preciseEnabled, preciseTrigger, preciseMode, preciseScale, discoveryEnabled, filterByDevice, verticalScrollPassthrough, preciseCustomKey, tiltInverted
+    }
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        mappings = try c.decodeIfPresent([ButtonID: KeyCombo].self, forKey: .mappings) ?? [:]
+        preciseEnabled = try c.decodeIfPresent(Bool.self, forKey: .preciseEnabled) ?? false
+        preciseTrigger = try c.decodeIfPresent(PreciseTrigger.self, forKey: .preciseTrigger) ?? .f13
+        preciseMode = try c.decodeIfPresent(PreciseMode.self, forKey: .preciseMode) ?? .toggle
+        preciseScale = try c.decodeIfPresent(Double.self, forKey: .preciseScale) ?? 0.3
+        discoveryEnabled = try c.decodeIfPresent(Bool.self, forKey: .discoveryEnabled) ?? false
+        filterByDevice = try c.decodeIfPresent(Bool.self, forKey: .filterByDevice) ?? false
+        verticalScrollPassthrough = try c.decodeIfPresent(Bool.self, forKey: .verticalScrollPassthrough) ?? true
+        preciseCustomKey = try c.decodeIfPresent(KeyCombo.self, forKey: .preciseCustomKey)
+        tiltInverted = try c.decodeIfPresent(Bool.self, forKey: .tiltInverted) ?? false
+    }
 }
 
 // 非MainActorで保持し、UI更新は手動でMainに飛ばす。EventTapコールバックはメインRunLoop上で同期実行されるためロック不要だが念のためNSLockで保護。

@@ -201,7 +201,14 @@ final class EventTapManager: ObservableObject {
         switch type {
         case .keyDown:
             let kc = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
-            // 精密トリガーがキーボードなら消費
+            let flags = event.flags
+            // 進む/戻るがキーボードエミュレーション(⌘] / ⌘[)の場合も精密トリガーとして消費
+            if store.settings.preciseTrigger == .mouseForward, flags.contains(.maskCommand), kc == 30 {
+                if precise.handleMouseTrigger(button: .forward, isDown: true) { return nil }
+            }
+            if store.settings.preciseTrigger == .mouseForward, flags.contains(.maskCommand), kc == 33 {
+                // 戻るのエミュレーションが来ても進むトリガーとはみなさない（将来拡張）
+            }
             if precise.handleKeyboardTrigger(keyCode: kc, isDown: true) {
                 return nil
             }
@@ -209,6 +216,10 @@ final class EventTapManager: ObservableObject {
 
         case .keyUp:
             let kc = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
+            let flagsUp = event.flags
+            if store.settings.preciseTrigger == .mouseForward, flagsUp.contains(.maskCommand), kc == 30 {
+                if precise.handleMouseTrigger(button: .forward, isDown: false) { return nil }
+            }
             if precise.handleKeyboardTrigger(keyCode: kc, isDown: false) {
                 return nil
             }
@@ -293,10 +304,12 @@ final class EventTapManager: ObservableObject {
             if precise.isActive {
                 let s = min(max(MappingStore.shared.settings.preciseScale, 0.25), 1.0)
                 if s < 0.99 {
-                    let dx = event.getDoubleValueField(.mouseEventDeltaX) * s
-                    let dy = event.getDoubleValueField(.mouseEventDeltaY) * s
-                    event.setDoubleValueField(.mouseEventDeltaX, value: dx)
-                    event.setDoubleValueField(.mouseEventDeltaY, value: dy)
+                    let dx = event.getIntegerValueField(.mouseEventDeltaX)
+                    let dy = event.getIntegerValueField(.mouseEventDeltaY)
+                    let ndx = Int64(Double(dx) * s)
+                    let ndy = Int64(Double(dy) * s)
+                    event.setIntegerValueField(.mouseEventDeltaX, value: ndx)
+                    event.setIntegerValueField(.mouseEventDeltaY, value: ndy)
                 }
             }
             return Unmanaged.passUnretained(event)

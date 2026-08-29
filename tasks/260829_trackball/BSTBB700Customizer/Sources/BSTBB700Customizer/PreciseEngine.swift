@@ -13,7 +13,7 @@ final class PreciseEngine: ObservableObject {
 
     var scale: Double {
         let s = store.settings.preciseScale
-        return min(max(s, 0.1), 1.0)
+        return min(max(s, 0.25), 1.0)
     }
 
     func toggle() {
@@ -76,9 +76,12 @@ final class PreciseEngine: ObservableObject {
             || (t == .mouseTiltLeft && button == .tiltLeft)
             || (t == .mouseTiltEither && (button == .tiltLeft || button == .tiltRight))
         guard matches else { return false }
-        // チルトはscrollWheelでupが取れないためholdは不可。toggleにフォールバック
+        // チルトはscrollWheelでupが取れないためholdは不可。強制トグル（modeに関わらず直接isActiveを反転）
         if (button == .tiltRight || button == .tiltLeft), store.settings.preciseMode == .hold {
-            if isDown { toggle() }
+            if isDown {
+                isActive.toggle()
+                DispatchQueue.main.async { HUDController.shared.flash(active: self.isActive) }
+            }
             return true
         }
         switch store.settings.preciseMode {
