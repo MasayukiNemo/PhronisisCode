@@ -15,7 +15,7 @@ struct SettingsView: View {
             generalTab.tabItem { Label("一般", systemImage: "gear") }.tag(3)
         }
         .padding(16)
-        .frame(minWidth: 560, minHeight: 520)
+        .frame(minWidth: 600, minHeight: 620)
         .onAppear { discovery.start() }
     }
 
@@ -32,12 +32,12 @@ struct SettingsView: View {
             PermissionView()
 
             VStack(spacing: 10) {
-                KeyCaptureView(title: "戻る", current: store.mapping(for: .back)) { c in store.setMapping(c, for: .back) }
-                KeyCaptureView(title: "進む", current: store.mapping(for: .forward)) { c in store.setMapping(c, for: .forward) }
-                KeyCaptureView(title: "中央押し", current: store.mapping(for: .center)) { c in store.setMapping(c, for: .center) }
+                HybridKeyRow(title: "戻る", current: store.mapping(for: .back)) { c in store.setMapping(c, for: .back) }
+                HybridKeyRow(title: "進む", current: store.mapping(for: .forward)) { c in store.setMapping(c, for: .forward) }
+                HybridKeyRow(title: "中央押し", current: store.mapping(for: .center)) { c in store.setMapping(c, for: .center) }
                 Divider()
-                KeyCaptureView(title: "チルト左", current: store.mapping(for: .tiltLeft)) { c in store.setMapping(c, for: .tiltLeft) }
-                KeyCaptureView(title: "チルト右", current: store.mapping(for: .tiltRight)) { c in store.setMapping(c, for: .tiltRight) }
+                HybridKeyRow(title: "チルト左", current: store.mapping(for: .tiltLeft)) { c in store.setMapping(c, for: .tiltLeft) }
+                HybridKeyRow(title: "チルト右", current: store.mapping(for: .tiltRight)) { c in store.setMapping(c, for: .tiltRight) }
             }
             .padding(12)
             .background(RoundedRectangle(cornerRadius: 10).fill(Color(nsColor: .controlBackgroundColor)))
@@ -70,17 +70,13 @@ struct SettingsView: View {
                 }.labelsHidden().frame(width: 200)
             }
             if store.settings.preciseTrigger == .customKey {
-                HStack(spacing: 8) {
-                    Text("カスタムキー").frame(width: 80, alignment: .leading)
-                    KeyCaptureView(title: "", current: store.settings.preciseCustomKey) { c in
+                VStack(alignment: .leading, spacing: 6) {
+                    HybridKeyRow(title: "カスタムキー", current: store.settings.preciseCustomKey) { c in
                         store.settings.preciseCustomKey = c
                         store.save()
                     }
-                    if store.settings.preciseCustomKey == nil {
-                        Text("未設定 — 右の「キャプチャ」で任意の未使用キーを押してください（例: §, 英数, 右Option単押し等）").font(.caption2).foregroundStyle(.secondary)
-                    }
+                    Text("カスタムキーは修飾なしの単押しを推奨。§キー、英数、右⌥等、押せる未使用キーをキャプチャまたはリスト選択で割り当て。").font(.caption2).foregroundStyle(.secondary)
                 }
-                Text("カスタムキーは修飾なしの単押しを推奨。MacBookで押せる未使用キー（例: §キー、英数、右⌥）を割り当てると精密モードを確実に発動できます。").font(.caption2).foregroundStyle(.secondary)
             }
             HStack {
                 Text("モード").frame(width: 80, alignment: .leading)
@@ -183,6 +179,27 @@ struct SettingsView: View {
             Spacer()
         }
         .padding(.top, 8)
+    }
+}
+
+/// キャプチャとリスト選択のハイブリッド行（ELECOM/Logitech/Keychronパターンを統合）
+struct HybridKeyRow: View {
+    var title: String
+    var current: KeyCombo?
+    var onChange: (KeyCombo?) -> Void
+    @State private var showBuilder = false
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            KeyCaptureView(title: title, current: current, onCapture: onChange)
+            DisclosureGroup(isExpanded: $showBuilder) {
+                KeyComboBuilderView(current: current, onChange: onChange)
+            } label: {
+                Text("リスト選択で組み立て（押しにくいキー・複合キー用）").font(.caption2).foregroundStyle(.secondary)
+            }
+        }
+        .padding(6)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: .windowBackgroundColor)))
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.gray.opacity(0.15)))
     }
 }
 
