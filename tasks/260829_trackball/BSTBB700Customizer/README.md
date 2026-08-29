@@ -68,6 +68,18 @@ swift build
 - Gatekeeper回避: `xattr -cr` + 右クリック→開く。将来Developer ID取得時に公証に置換
 - DMG/zip直配布 or Homebrew cask（任意）
 
+### 友人向け簡易配布（ad-hocでも3ステップ）
+
+zipに `BSTBB700Customizer.app` と `install.sh` を同梱。受け取った側は:
+
+```bash
+# 展開後にダブルクリック or ターミナルで
+./install.sh
+# 1) /Applications にコピー 2) xattr -cr 3) アプリ起動 + 設定画面を自動で開く
+```
+
+その後、表示された設定画面の指示に従い「入力監視」と「アクセシビリティ」をONにし、PermissionViewの「再チェック」または「アプリを再起動」を押す。初回のみこの操作、アップデート時は同じ install.sh で上書き。Developer IDで署名し直せばこの手動追加は初回1回で固定され、Gatekeeper警告も消える。
+
 ## 既知の制約（MVP）
 
 - 精密モードはグローバル減速（トラックパッド含む全ポインタが減速）。UIに明記済み
