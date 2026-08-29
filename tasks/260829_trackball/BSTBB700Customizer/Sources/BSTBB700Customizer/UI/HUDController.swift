@@ -9,11 +9,6 @@ final class HUDController {
 
     func flash(active: Bool) {
         show(text: active ? "精密モード ON" : "精密モード OFF", color: active ? .systemGreen : .systemGray)
-        if active {
-            showPersistent(active: true)
-        } else {
-            hidePersistent()
-        }
     }
 
     private var persistentWindow: NSWindow?

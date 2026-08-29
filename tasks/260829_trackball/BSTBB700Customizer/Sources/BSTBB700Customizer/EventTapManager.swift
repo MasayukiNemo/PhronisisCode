@@ -9,6 +9,7 @@ final class EventTapManager: ObservableObject {
 
     @Published var isRunning: Bool = false
     @Published var lastEventDescription: String = ""
+    @Published var lastMouseDelta: (dx: Int64, dy: Int64, scaledDx: Int64, scaledDy: Int64, isPrecise: Bool) = (0,0,0,0,false)
 
     private var tap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
@@ -21,6 +22,7 @@ final class EventTapManager: ObservableObject {
     private var lastEscapeTimes: [CFTimeInterval] = []
     private var lastLogTime: CFTimeInterval = 0
     private var lastTiltTime: CFTimeInterval = 0
+    private var lastDeltaTime: CFTimeInterval = 0
 
     // 相関窓: キーボード由来と区別するためのタイムスタンプ（将来拡張）
     private var lastIOHIDTimestamp: UInt64 = 0
@@ -333,19 +335,27 @@ final class EventTapManager: ObservableObject {
             return Unmanaged.passUnretained(event)
 
         case .mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged:
+            let dx = event.getIntegerValueField(.mouseEventDeltaX)
+            let dy = event.getIntegerValueField(.mouseEventDeltaY)
+            var scaledDx = dx
+            var scaledDy = dy
             if precise.isActive {
                 let s = min(max(MappingStore.shared.settings.preciseScale, 0.25), 1.0)
                 if s < 0.99 {
-                    let dx = event.getIntegerValueField(.mouseEventDeltaX)
-                    let dy = event.getIntegerValueField(.mouseEventDeltaY)
-                    let ndx = Int64(Double(dx) * s)
-                    let ndy = Int64(Double(dy) * s)
-                    event.setIntegerValueField(.mouseEventDeltaX, value: ndx)
-                    event.setIntegerValueField(.mouseEventDeltaY, value: ndy)
-                    // 位置も補正しないと加速が残るためlocationをスケール
+                    scaledDx = Int64(Double(dx) * s)
+                    scaledDy = Int64(Double(dy) * s)
+                    event.setIntegerValueField(.mouseEventDeltaX, value: scaledDx)
+                    event.setIntegerValueField(.mouseEventDeltaY, value: scaledDy)
                     let loc = event.location
                     let nloc = CGPoint(x: loc.x + CGFloat(Double(dx) * (s - 1.0)), y: loc.y + CGFloat(Double(dy) * (s - 1.0)))
                     event.location = nloc
+                }
+            }
+            let now2 = CFAbsoluteTimeGetCurrent()
+            if now2 - lastDeltaTime > 0.08 {
+                lastDeltaTime = now2
+                DispatchQueue.main.async { [dx, dy, scaledDx, scaledDy] in
+                    self.lastMouseDelta = (dx, dy, scaledDx, scaledDy, precise.isActive)
                 }
             }
             return Unmanaged.passUnretained(event)

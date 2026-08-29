@@ -123,15 +123,11 @@ struct SettingsView: View {
                 .padding(8).background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .controlBackgroundColor)))
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(precise.isActive ? Color.green.opacity(0.6) : Color.clear, lineWidth: 1))
 
-                // 目に見える動作確認エリア
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("動作確認").font(.caption).bold()
-                    Text("精密ONでトラックボールを転がすと、カーソルが \(Int(store.settings.preciseScale*100))% の速度で動きます。OFFとONを切り替えて同じ距離を転がし、移動量の差を体感してください。").font(.caption2).foregroundStyle(.secondary)
-                    if precise.isActive {
-                        Label("現在 精密ON — メニューバーアイコンが緑、画面右上に「● 精密 ON」オーバーレイが表示されています", systemImage: "eye.fill").font(.caption2).foregroundStyle(.green)
-                    } else {
-                        Label("現在 精密OFF — 通常速度です", systemImage: "eye.slash").font(.caption2).foregroundStyle(.secondary)
-                    }
+                // カーソルが遅くなっているかを目で確認するエリア
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("カーソル速度の検証").font(.caption).bold()
+                    Text("精密ONでトラックボールを転がすと、カーソルが \(Int(store.settings.preciseScale*100))% の速度で動きます。下の数値とバーで、実際に遅くなっているかを確認できます。").font(.caption2).foregroundStyle(.secondary)
+                    PreciseDeltaTestView()
                     HStack(spacing: 8) {
                         Button("HUDを再表示") { HUDController.shared.flash(active: precise.isActive) }
                         Button("メニューバーを確認") { NSApp.activate(ignoringOtherApps: true) }
@@ -201,6 +197,39 @@ struct SettingsView: View {
             Spacer()
         }
         .padding(.top, 8)
+    }
+}
+
+struct PreciseDeltaTestView: View {
+    @ObservedObject private var tap = EventTapManager.shared
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Circle().fill(tap.lastMouseDelta.isPrecise ? Color.green : Color.gray).frame(width: 10, height: 10)
+                Text(tap.lastMouseDelta.isPrecise ? "精密 ON" : "精密 OFF").font(.caption2).foregroundStyle(tap.lastMouseDelta.isPrecise ? .green : .secondary)
+                Spacer()
+                Text("raw: \(tap.lastMouseDelta.dx),\(tap.lastMouseDelta.dy) → scaled: \(tap.lastMouseDelta.scaledDx),\(tap.lastMouseDelta.scaledDy)").font(.caption2).monospacedDigit().foregroundStyle(.secondary)
+            }
+            // バーで視覚的に
+            GeometryReader { geo in
+                let w = geo.size.width
+                let rawLen = min(CGFloat(abs(tap.lastMouseDelta.dx)) * 2.0, w)
+                let scaledLen = min(CGFloat(abs(tap.lastMouseDelta.scaledDx)) * 2.0, w)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 4) {
+                        Text("raw").font(.caption2).frame(width: 40, alignment: .leading)
+                        Rectangle().fill(Color.gray.opacity(0.6)).frame(width: rawLen, height: 8).cornerRadius(4)
+                    }
+                    HStack(spacing: 4) {
+                        Text("scaled").font(.caption2).frame(width: 40, alignment: .leading)
+                        Rectangle().fill(tap.lastMouseDelta.isPrecise ? Color.green : Color.gray).frame(width: scaledLen, height: 8).cornerRadius(4)
+                    }
+                }
+            }
+            .frame(height: 36)
+            Text("トラックボールを転がすとバーが伸びます。精密ONでは scaled のバーが raw より短くなれば、確実に遅くなっています。").font(.caption2).foregroundStyle(.secondary)
+        }
+        .padding(6).background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: .controlBackgroundColor)))
     }
 }
 
