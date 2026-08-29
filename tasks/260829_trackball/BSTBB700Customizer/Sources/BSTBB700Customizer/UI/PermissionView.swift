@@ -36,13 +36,13 @@ struct PermissionView: View {
                         Label("EventTap未起動", systemImage: "exclamationmark.triangle.fill").font(.caption).foregroundStyle(.orange)
                     }
                 }
-                Text("「システム設定 → プライバシーとセキュリティ → 入力監視」で BSTBB700Customizer をONにしてください。\n「アクセシビリティ」もONが必要です。\nListen=ボタン横取りに必須 / Post=キー送信に必須 / AX=旧API互換。\n「許可を要求」は初回のみダイアログが出ます。拒否後は設定で手動ONしてください。許可後は自動で反映されますが、反映されない場合は「再チェック」またはアプリ再起動してください。")
+                Text("「システム設定 → プライバシーとセキュリティ」で「アクセシビリティ」と「入力監視」の両方で BSTBB700Customizer をONにしてください。\nAX=旧API互換 / Listen=ボタン横取りに必須 / Post=キー送信に必須。\n「許可を要求」は初回のみダイアログが出ます。拒否後は設定で手動ONしてください。許可後は自動で反映されますが、反映されない場合は「再チェック」またはアプリ再起動してください。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 HStack(spacing: 12) {
-                    Button("入力監視を開く") { openPrivacyPane("Privacy_InputMonitoring") }
-                        .buttonStyle(.borderedProminent)
                     Button("アクセシビリティを開く") { openPrivacyPane("Privacy_Accessibility") }
+                        .buttonStyle(.borderedProminent)
+                    Button("入力監視を開く") { openPrivacyPane("Privacy_InputMonitoring") }
                         .buttonStyle(.bordered)
                     Button("再チェック") { refreshAndRestartIfNeeded() }
                 }
