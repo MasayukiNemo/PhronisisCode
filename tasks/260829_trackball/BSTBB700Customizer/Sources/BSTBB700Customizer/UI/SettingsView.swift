@@ -193,6 +193,13 @@ struct SettingsView: View {
             Text("一般").font(.headline)
             LoginItemToggle()
             Divider()
+            VStack(alignment: .leading, spacing: 8) {
+                Text("カーソル").font(.subheadline)
+                Toggle("カーソルの上下左右が逆の場合はON（根本的な反転を補正）", isOn: Binding(get: { store.settings.cursorInverted }, set: { v in store.settings.cursorInverted = v; store.save() }))
+                    .font(.caption).toggleStyle(.switch)
+                Text("トラックボールの球を転がした方向とカーソルが逆に動く場合にON。精密時の反転トグルとは別で、通常時のカーソル移動自体を反転します。").font(.caption2).foregroundStyle(.secondary)
+            }
+            Divider()
             VStack(alignment: .leading, spacing: 6) {
                 Text("配布と署名").font(.subheadline)
                 Text("ad-hoc署名で動作します。Gatekeeperでブロックされた場合は `xattr -cr BSTBB700Customizer.app` 後に右クリック→開くで起動してください。SandboxはOFF。\nシステム設定 > プライバシーとセキュリティ > 入力監視 / アクセシビリティ で本アプリを許可してください。").font(.caption).foregroundStyle(.secondary)

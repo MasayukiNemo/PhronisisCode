@@ -356,12 +356,14 @@ final class EventTapManager: ObservableObject {
 
         case .mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged:
             if isWarping {
-                // Warp直後の合成1イベントのみ素通し（0.05秒窓は次の実移動まで潰すため1イベント限定に）
                 isWarping = false
                 return Unmanaged.passUnretained(event)
             }
-            let dx = event.getIntegerValueField(.mouseEventDeltaX)
-            let dy = event.getIntegerValueField(.mouseEventDeltaY)
+            let dxRaw = event.getIntegerValueField(.mouseEventDeltaX)
+            let dyRaw = event.getIntegerValueField(.mouseEventDeltaY)
+            let cursorInv = MappingStore.shared.settings.cursorInverted
+            let dx = cursorInv ? -dxRaw : dxRaw
+            let dy = cursorInv ? -dyRaw : dyRaw
             var scaledDx = dx
             var scaledDy = dy
             var didScale = false
@@ -369,7 +371,6 @@ final class EventTapManager: ObservableObject {
             if precise.isActive {
                 let s = min(max(MappingStore.shared.settings.preciseScale, 0.25), 1.0)
                 if s < 0.99 && (dx != 0 || dy != 0) {
-                    // 小数蓄積で1-3pxの消失を防止
                     let rawDx = Double(dx) + warpRemainderX
                     let rawDy = Double(dy) + warpRemainderY
                     let ndx = rawDx * s
@@ -391,11 +392,20 @@ final class EventTapManager: ObservableObject {
                     didScale = true
                     consumedAndWarped = true
                 } else if dx == 0 && dy == 0 {
-                    // 微動で0になった場合も remainder は保持
                 } else {
                     warpRemainderX = 0
                     warpRemainderY = 0
                 }
+            } else if cursorInv && (dxRaw != 0 || dyRaw != 0) {
+                // 精密OFFだがカーソル反転が必要な場合
+                let cgCur = event.location
+                let nloc = CGPoint(x: cgCur.x + CGFloat(dx - dxRaw), y: cgCur.y + CGFloat(dy - dyRaw))
+                isWarping = true
+                CGWarpMouseCursorPosition(nloc)
+                scaledDx = dx
+                scaledDy = dy
+                didScale = true
+                consumedAndWarped = true
             } else {
                 warpRemainderX = 0
                 warpRemainderY = 0
