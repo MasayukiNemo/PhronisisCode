@@ -20,6 +20,7 @@ final class EventTapManager: ObservableObject {
     private var consecutiveTimeouts = 0
     private var lastEscapeTimes: [CFTimeInterval] = []
     private var lastLogTime: CFTimeInterval = 0
+    private var lastTiltTime: CFTimeInterval = 0
 
     // 相関窓: キーボード由来と区別するためのタイムスタンプ（将来拡張）
     private var lastIOHIDTimestamp: UInt64 = 0
@@ -202,18 +203,18 @@ final class EventTapManager: ObservableObject {
         case .keyDown:
             let kc = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
             let flags = event.flags
-            // BSTBB700特殊仕様: 進む/戻るが Ctrl+→/Ctrl+← として送られる
-            if flags.contains(.maskControl) && kc == 124 {
-                // Ctrl+→ = 進む
+            // BSTBB700特殊仕様: 進む/戻るが Ctrl+→/Ctrl+← として送られる。キーボードのShift付き等は誤爆しないよう厳密にCtrlのみを判定
+            let isCtrlOnly = flags.contains(.maskControl) && !flags.contains(.maskShift) && !flags.contains(.maskCommand) && !flags.contains(.maskAlternate)
+            if isCtrlOnly && kc == 124 {
+                // Ctrl+→ = 進む（HoldリピートはkeyDownが連続で来るため、2回目以降はMappingのemitをthrottleせず素通ししない）
                 if precise.handleMouseTrigger(button: .forward, isDown: true) { return nil }
                 if store.isPreciseTriggerConsuming(button: .forward) { return nil }
                 if let combo = store.mapping(for: .forward) {
                     KeyEmitter.emit(combo: combo)
                     return nil
                 }
-                // 未割り当ては素通し（デフォルトのCtrl+→を維持）
             }
-            if flags.contains(.maskControl) && kc == 123 {
+            if isCtrlOnly && kc == 123 {
                 // Ctrl+← = 戻る
                 if precise.handleMouseTrigger(button: .back, isDown: true) { return nil }
                 if store.isPreciseTriggerConsuming(button: .back) { return nil }
@@ -234,11 +235,12 @@ final class EventTapManager: ObservableObject {
         case .keyUp:
             let kc = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
             let flagsUp = event.flags
-            if flagsUp.contains(.maskControl) && kc == 124 {
+            let isCtrlOnlyUp = flagsUp.contains(.maskControl) && !flagsUp.contains(.maskShift) && !flagsUp.contains(.maskCommand) && !flagsUp.contains(.maskAlternate)
+            if isCtrlOnlyUp && kc == 124 {
                 if precise.handleMouseTrigger(button: .forward, isDown: false) { return nil }
                 if store.mapping(for: .forward) != nil || store.isPreciseTriggerConsuming(button: .forward) { return nil }
             }
-            if flagsUp.contains(.maskControl) && kc == 123 {
+            if isCtrlOnlyUp && kc == 123 {
                 if precise.handleMouseTrigger(button: .back, isDown: false) { return nil }
                 if store.mapping(for: .back) != nil || store.isPreciseTriggerConsuming(button: .back) { return nil }
             }
@@ -300,11 +302,16 @@ final class EventTapManager: ObservableObject {
             let isVertical = abs(v) >= 0.05
 
             if isHorizontalTilt {
+                let now = CFAbsoluteTimeGetCurrent()
+                // 0.3秒デバウンスで連射防止（Spaces設定OFFでも誤爆を抑える）
+                if now - lastTiltTime < 0.3 {
+                    return Unmanaged.passUnretained(event)
+                }
+                lastTiltTime = now
                 let inverted = MappingStore.shared.settings.tiltInverted
                 let rawRight = h > 0
                 let isRight = inverted ? !rawRight : rawRight
                 let tiltButton: ButtonID = isRight ? .tiltRight : .tiltLeft
-                // 精密トリガー消費（左右どちらも対応、Eitherなら両方）
                 if precise.handleMouseTrigger(button: tiltButton, isDown: true) {
                     return nil
                 }
