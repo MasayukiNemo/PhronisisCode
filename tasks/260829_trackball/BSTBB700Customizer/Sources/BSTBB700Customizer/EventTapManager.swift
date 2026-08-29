@@ -383,9 +383,9 @@ final class EventTapManager: ObservableObject {
                     let inv = MappingStore.shared.settings.preciseInverted
                     let nloc: CGPoint
                     if inv {
-                        nloc = CGPoint(x: cgCur.x - CGFloat(Double(dx) + Double(scaledDx)), y: cgCur.y - CGFloat(Double(dy) + Double(scaledDy)))
+                        nloc = CGPoint(x: cgCur.x + CGFloat(scaledDx - dx), y: cgCur.y + CGFloat(scaledDy - dy))
                     } else {
-                        nloc = CGPoint(x: cgCur.x + CGFloat(Double(scaledDx) - Double(dx)), y: cgCur.y + CGFloat(Double(scaledDy) - Double(dy)))
+                        nloc = CGPoint(x: cgCur.x - CGFloat(dx + scaledDx), y: cgCur.y - CGFloat(dy + scaledDy))
                     }
                     isWarping = true
                     CGWarpMouseCursorPosition(nloc)
