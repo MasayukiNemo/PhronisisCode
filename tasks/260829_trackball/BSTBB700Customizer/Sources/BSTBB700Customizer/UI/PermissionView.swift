@@ -45,11 +45,19 @@ struct PermissionView: View {
                         .buttonStyle(.bordered)
                     Button("再チェック") { refreshAndRestartIfNeeded() }
                 }
+                HStack(spacing: 12) {
+                    Button("アプリを再起動") { restartApp() }
+                        .buttonStyle(.bordered)
+                    Text("権限付与後は再起動が必要です").font(.caption2).foregroundStyle(.secondary)
+                }
                 if !listenOK {
-                    Button("入力監視の許可を要求") {
-                        if #available(macOS 10.15, *) { _ = CGRequestListenEventAccess() }
-                        refreshAndRestartIfNeeded()
-                    }.font(.caption)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Button("入力監視の許可を要求") {
+                            if #available(macOS 10.15, *) { _ = CGRequestListenEventAccess() }
+                            refreshAndRestartIfNeeded()
+                        }.font(.caption)
+                        Text("再ビルド後は古い許可が無効になります。入力監視の一覧から BSTBB700Customizer を「-」で削除し、「+」でこの .app を再追加してください。").font(.caption2).foregroundStyle(.orange)
+                    }
                 }
                 if !postOK {
                     Button("イベント送信の許可を要求") {
@@ -108,9 +116,18 @@ struct PermissionView: View {
         } else {
             NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security")!)
         }
-        // フォールバック: 手動で開く案内
         if pane == "Privacy_InputMonitoring" {
             NSLog("[BSTBB700] Open InputMonitoring pane")
         }
+    }
+
+    private func restartApp() {
+        let appPath = Bundle.main.bundlePath
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        task.arguments = [appPath]
+        try? task.run()
+        NSApp.terminate(nil)
+        exit(0)
     }
 }
