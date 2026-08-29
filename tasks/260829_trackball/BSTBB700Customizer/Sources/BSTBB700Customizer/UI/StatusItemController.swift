@@ -33,14 +33,24 @@ final class StatusItemController: ObservableObject {
         }
 
         let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "設定を開く…", action: #selector(openSettings), keyEquivalent: ","))
+        menu.autoenablesItems = false
+        let openItem = NSMenuItem(title: "設定を開く…", action: #selector(openSettings), keyEquivalent: ",")
+        openItem.target = self
+        openItem.isEnabled = true
+        menu.addItem(openItem)
         menu.addItem(NSMenuItem.separator())
         let preciseItem = NSMenuItem(title: "精密モード", action: nil, keyEquivalent: "")
-        preciseItem.view = nil
+        preciseItem.isEnabled = false
         menu.addItem(preciseItem)
-        menu.addItem(NSMenuItem(title: "精密 ON/OFF 切替", action: #selector(togglePrecise), keyEquivalent: ""))
+        let toggleItem = NSMenuItem(title: "精密 ON/OFF 切替", action: #selector(togglePrecise), keyEquivalent: "")
+        toggleItem.target = self
+        toggleItem.isEnabled = true
+        menu.addItem(toggleItem)
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "終了", action: #selector(quit), keyEquivalent: "q"))
+        let quitItem = NSMenuItem(title: "終了", action: #selector(quit), keyEquivalent: "q")
+        quitItem.target = self
+        quitItem.isEnabled = true
+        menu.addItem(quitItem)
         item.menu = menu
         if #available(macOS 13.0, *) {
             NSLog("[BSTBB700] StatusItem menu set, isVisible=%d", item.isVisible ? 1 : 0)
