@@ -18,10 +18,18 @@ final class StatusItemController: ObservableObject {
         }.store(in: &cancellables)
 
         if let button = item.button {
-            button.image = NSImage(systemSymbolName: "scope", accessibilityDescription: "BSTBB700")
-            button.target = self
-            button.action = #selector(handleClick(_:))
-            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            // SF SymbolsはOSバージョンで存在しない場合があるためフォールバックを用意
+            let img = NSImage(systemSymbolName: "scope", accessibilityDescription: "BSTBB700")
+                ?? NSImage(systemSymbolName: "target", accessibilityDescription: "BSTBB700")
+            button.image = img
+            button.imagePosition = .imageOnly
+            // isVisibleはmacOS 13+で非表示にされることがあるため明示
+            if #available(macOS 13.0, *) {
+                item.isVisible = true
+            }
+            NSLog("[BSTBB700] StatusItem button created: image=%@ frame=%@", String(describing: button.image), NSStringFromRect(button.frame))
+        } else {
+            NSLog("[BSTBB700] ERROR: statusItem.button is nil - menu bar may be hidden or system limit")
         }
 
         let menu = NSMenu()
@@ -34,13 +42,29 @@ final class StatusItemController: ObservableObject {
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "終了", action: #selector(quit), keyEquivalent: "q"))
         item.menu = menu
+        if #available(macOS 13.0, *) {
+            NSLog("[BSTBB700] StatusItem menu set, isVisible=%d", item.isVisible ? 1 : 0)
+        } else {
+            NSLog("[BSTBB700] StatusItem menu set")
+        }
     }
 
     private func updateIcon(isPrecise: Bool) {
-        guard let button = statusItem?.button else { return }
-        button.image = NSImage(systemSymbolName: isPrecise ? "scope" : "circle.dotted.scope",
-                               accessibilityDescription: isPrecise ? "Precise ON" : "Precise OFF")
+        guard let button = statusItem?.button else {
+            NSLog("[BSTBB700] updateIcon failed: button is nil")
+            return
+        }
+        // "circle.dotted.scope"はmacOS 14+でしか存在しないためフォールバック
+        let name = isPrecise ? "scope" : "scope"
+        let fallback = isPrecise ? "target" : "circle"
+        let img = NSImage(systemSymbolName: name, accessibilityDescription: isPrecise ? "Precise ON" : "Precise OFF")
+            ?? NSImage(systemSymbolName: fallback, accessibilityDescription: "BSTBB700")
+        button.image = img
         button.contentTintColor = isPrecise ? .systemGreen : nil
+        if #available(macOS 13.0, *) {
+            statusItem?.isVisible = true
+        }
+        NSLog("[BSTBB700] updateIcon isPrecise=%@ image=%@", isPrecise ? "ON" : "OFF", String(describing: img))
     }
 
     @objc private func handleClick(_ sender: Any?) {
