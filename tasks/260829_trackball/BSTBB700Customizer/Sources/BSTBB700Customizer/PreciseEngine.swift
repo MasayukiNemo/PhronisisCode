@@ -40,10 +40,25 @@ final class PreciseEngine: ObservableObject {
 
     func handleKeyboardTrigger(keyCode: UInt16, isDown: Bool) -> Bool {
         guard store.settings.preciseEnabled else { return false }
-        guard let triggerCode = store.settings.preciseTrigger.keyCode else { return false }
+        let settings = store.settings
+        // カスタムキー優先
+        if settings.preciseTrigger == .customKey, let custom = settings.preciseCustomKey {
+            guard custom.keyCode == keyCode else { return false }
+            // 修飾も一致が必要（CapsLock等はflagsで判定するケースもあるため、modifier一致を要求）
+            // MVPはkeyCode一致のみで判定し、modifierは無視（任意の未使用キーを想定）
+            switch settings.preciseMode {
+            case .toggle:
+                if isDown { toggle() }
+                return true
+            case .hold:
+                if isDown { holdBegan() } else { holdEnded() }
+                return true
+            }
+        }
+        guard let triggerCode = settings.preciseTrigger.keyCode else { return false }
         guard triggerCode == keyCode else { return false }
 
-        switch store.settings.preciseMode {
+        switch settings.preciseMode {
         case .toggle:
             if isDown { toggle() }
             return true

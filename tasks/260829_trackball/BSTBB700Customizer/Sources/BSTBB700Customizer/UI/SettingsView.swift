@@ -69,6 +69,19 @@ struct SettingsView: View {
                     ForEach(PreciseTrigger.allCases, id: \.self) { t in Text(t.display).tag(t) }
                 }.labelsHidden().frame(width: 200)
             }
+            if store.settings.preciseTrigger == .customKey {
+                HStack(spacing: 8) {
+                    Text("カスタムキー").frame(width: 80, alignment: .leading)
+                    KeyCaptureView(title: "", current: store.settings.preciseCustomKey) { c in
+                        store.settings.preciseCustomKey = c
+                        store.save()
+                    }
+                    if store.settings.preciseCustomKey == nil {
+                        Text("未設定 — 右の「キャプチャ」で任意の未使用キーを押してください（例: §, 英数, 右Option単押し等）").font(.caption2).foregroundStyle(.secondary)
+                    }
+                }
+                Text("カスタムキーは修飾なしの単押しを推奨。MacBookで押せる未使用キー（例: §キー、英数、右⌥）を割り当てると精密モードを確実に発動できます。").font(.caption2).foregroundStyle(.secondary)
+            }
             HStack {
                 Text("モード").frame(width: 80, alignment: .leading)
                 Picker("", selection: Binding(get: { store.settings.preciseMode }, set: { v in
