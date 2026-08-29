@@ -37,9 +37,20 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<EOF
 </plist>
 EOF
 
-# ad-hoc sign
-echo "==> codesign -s - (ad-hoc)"
-codesign --force --deep --sign - "$APP_BUNDLE" 2>&1 || echo "codesign warning (ok for ad-hoc)"
+# sign with stable local cert if available, otherwise ad-hoc (ad-hoc requires re-grant after each build)
+# Ensure custom keychain is in search list
+security list-keychains -d user -s /tmp/bstbb700.keychain ~/Library/Keychains/login.keychain-db 2>&1 | head -n 5 || true
+if security find-identity -v -p codesigning /tmp/bstbb700.keychain 2>&1 | grep -q "BSTBB700 Local2"; then
+    echo "==> codesign with BSTBB700 Local2 (stable, no re-grant needed)"
+    security unlock-keychain -p bstbb700 /tmp/bstbb700.keychain 2>&1 | head -n 5 || true
+    codesign --force --deep --sign "BSTBB700 Local2" --keychain /tmp/bstbb700.keychain "$APP_BUNDLE" 2>&1 || {
+        echo "codesign Local2 failed, fallback to ad-hoc"
+        codesign --force --deep --sign - "$APP_BUNDLE" 2>&1 || echo "codesign warning (ok for ad-hoc)"
+    }
+else
+    echo "==> codesign -s - (ad-hoc, requires re-grant after each rebuild)"
+    codesign --force --deep --sign - "$APP_BUNDLE" 2>&1 || echo "codesign warning (ok for ad-hoc)"
+fi
 
 # verify
 codesign -dv "$APP_BUNDLE" 2>&1 | head -n 20 || true
