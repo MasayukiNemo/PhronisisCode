@@ -367,7 +367,8 @@ final class EventTapManager: ObservableObject {
                     let inv = MappingStore.shared.settings.preciseInverted
                     let nloc: CGPoint
                     if inv {
-                        nloc = CGPoint(x: cgCur.x - CGFloat(scaledDx - dx), y: cgCur.y - CGFloat(scaledDy - dy))
+                        // 反転時は逆方向に scaled 分だけ動かす (oldPos - scaled)
+                        nloc = CGPoint(x: cgCur.x - CGFloat(dx + scaledDx), y: cgCur.y - CGFloat(dy + scaledDy))
                     } else {
                         nloc = CGPoint(x: cgCur.x + CGFloat(scaledDx - dx), y: cgCur.y + CGFloat(scaledDy - dy))
                     }
