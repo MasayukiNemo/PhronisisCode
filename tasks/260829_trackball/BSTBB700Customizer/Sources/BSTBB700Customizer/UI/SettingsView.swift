@@ -15,118 +15,119 @@ struct SettingsView: View {
             generalTab.tabItem { Label("一般", systemImage: "gear") }.tag(3)
         }
         .padding(16)
-        .frame(minWidth: 600, minHeight: 620)
+        .frame(minWidth: 640, minHeight: 700)
         .onAppear { discovery.start() }
     }
 
     private var mappingTab: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("BSTBB700 ボタン割り当て").font(.headline)
-            Text("未割り当ては素通し（ブラウザの進む/戻る等を維持）、割り当て時は横取りしてキー送信します。チルトは水平(H)のみカスタム、垂直は素通し。").font(.caption).foregroundStyle(.secondary)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("BSTBB700 ボタン割り当て").font(.headline)
+                Text("未割り当ては素通し（ブラウザの進む/戻る等を維持）、割り当て時は横取りしてキー送信します。チルトは水平(H)のみカスタム、垂直は素通し。").font(.caption).foregroundStyle(.secondary)
 
-            if let msg = store.conflictMessage {
-                Label(msg, systemImage: "exclamationmark.triangle.fill").font(.caption).foregroundStyle(.orange)
-                    .padding(8).background(RoundedRectangle(cornerRadius: 8).fill(Color.orange.opacity(0.15)))
+                if let msg = store.conflictMessage {
+                    Label(msg, systemImage: "exclamationmark.triangle.fill").font(.caption).foregroundStyle(.orange)
+                        .padding(8).background(RoundedRectangle(cornerRadius: 8).fill(Color.orange.opacity(0.15)))
+                }
+
+                PermissionView()
+
+                VStack(spacing: 10) {
+                    HybridKeyRow(title: "戻る", current: store.mapping(for: .back)) { c in store.setMapping(c, for: .back) }
+                    HybridKeyRow(title: "進む", current: store.mapping(for: .forward)) { c in store.setMapping(c, for: .forward) }
+                    HybridKeyRow(title: "中央押し", current: store.mapping(for: .center)) { c in store.setMapping(c, for: .center) }
+                    Divider()
+                    HybridKeyRow(title: "チルト左", current: store.mapping(for: .tiltLeft)) { c in store.setMapping(c, for: .tiltLeft) }
+                    HybridKeyRow(title: "チルト右", current: store.mapping(for: .tiltRight)) { c in store.setMapping(c, for: .tiltRight) }
+                }
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: 10).fill(Color(nsColor: .controlBackgroundColor)))
             }
-
-            PermissionView()
-
-            VStack(spacing: 10) {
-                HybridKeyRow(title: "戻る", current: store.mapping(for: .back)) { c in store.setMapping(c, for: .back) }
-                HybridKeyRow(title: "進む", current: store.mapping(for: .forward)) { c in store.setMapping(c, for: .forward) }
-                HybridKeyRow(title: "中央押し", current: store.mapping(for: .center)) { c in store.setMapping(c, for: .center) }
-                Divider()
-                HybridKeyRow(title: "チルト左", current: store.mapping(for: .tiltLeft)) { c in store.setMapping(c, for: .tiltLeft) }
-                HybridKeyRow(title: "チルト右", current: store.mapping(for: .tiltRight)) { c in store.setMapping(c, for: .tiltRight) }
-            }
-            .padding(12)
-            .background(RoundedRectangle(cornerRadius: 10).fill(Color(nsColor: .controlBackgroundColor)))
-
-            Spacer()
+            .padding(.top, 8)
+            .padding(.horizontal, 4)
         }
-        .padding(.top, 8)
     }
 
     private var preciseTab: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("精密モード").font(.headline)
-            Toggle("精密モードを有効化", isOn: Binding(get: { store.settings.preciseEnabled }, set: { v in
-                store.settings.preciseEnabled = v
-                store.save()
-            }))
-            .toggleStyle(.switch)
-
-            HStack {
-                Text("トリガー").frame(width: 80, alignment: .leading)
-                Picker("", selection: Binding(get: { store.settings.preciseTrigger }, set: { v in
-                    store.settings.preciseTrigger = v; store.save()
-                    // チルト右でholdなら自動でtoggleにフォールバック
-                    if v == .mouseTiltRight, store.settings.preciseMode == .hold {
-                        store.settings.preciseMode = .toggle
-                        store.save()
-                    }
-                })) {
-                    ForEach(PreciseTrigger.allCases, id: \.self) { t in Text(t.display).tag(t) }
-                }.labelsHidden().frame(width: 200)
-            }
-            if store.settings.preciseTrigger == .customKey {
-                VStack(alignment: .leading, spacing: 6) {
-                    HybridKeyRow(title: "カスタムキー", current: store.settings.preciseCustomKey) { c in
-                        store.settings.preciseCustomKey = c
-                        store.save()
-                    }
-                    Text("カスタムキーは修飾なしの単押しを推奨。§キー、英数、右⌥等、押せる未使用キーをキャプチャまたはリスト選択で割り当て。").font(.caption2).foregroundStyle(.secondary)
-                }
-            }
-            HStack {
-                Text("モード").frame(width: 80, alignment: .leading)
-                Picker("", selection: Binding(get: { store.settings.preciseMode }, set: { v in
-                    store.settings.preciseMode = v; store.save()
-                })) {
-                    Text("トグル（押すたびON/OFF）").tag(PreciseMode.toggle)
-                    Text("ホールド（押している間のみ）").tag(PreciseMode.hold)
-                }.labelsHidden().pickerStyle(.radioGroup)
-                .disabled(store.settings.preciseTrigger == .mouseTiltRight && store.settings.preciseMode == .hold)
-            }
-            if store.settings.preciseTrigger == .mouseTiltRight {
-                Label("チルト右はホールド非対応（離上イベントがないため）。トグルのみ推奨。", systemImage: "info.circle").font(.caption2).foregroundStyle(.orange)
-            }
-            if store.settings.preciseTrigger == .capsLock {
-                Label("CapsLockはflagsChangedで判定します。システムのCapsLock動作と競合する場合があります。", systemImage: "info.circle").font(.caption2).foregroundStyle(.secondary)
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text("移動量スケール")
-                    Spacer()
-                    Text("\(Int(store.settings.preciseScale * 100))%").monospacedDigit().foregroundStyle(.secondary)
-                }
-                Slider(value: Binding(get: { store.settings.preciseScale }, set: { v in
-                    store.settings.preciseScale = min(max(v, 0.1), 1.0)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("精密モード").font(.headline)
+                Toggle("精密モードを有効化", isOn: Binding(get: { store.settings.preciseEnabled }, set: { v in
+                    store.settings.preciseEnabled = v
                     store.save()
-                }), in: 0.1...1.0, step: 0.05)
-                HStack { Text("10%").font(.caption2).foregroundStyle(.secondary); Spacer(); Text("100%").font(.caption2).foregroundStyle(.secondary) }
+                }))
+                .toggleStyle(.switch)
+
+                HStack {
+                    Text("トリガー").frame(width: 80, alignment: .leading)
+                    Picker("", selection: Binding(get: { store.settings.preciseTrigger }, set: { v in
+                        store.settings.preciseTrigger = v; store.save()
+                        if v == .mouseTiltRight, store.settings.preciseMode == .hold {
+                            store.settings.preciseMode = .toggle
+                            store.save()
+                        }
+                    })) {
+                        ForEach(PreciseTrigger.allCases, id: \.self) { t in Text(t.display).tag(t) }
+                    }.labelsHidden().frame(width: 200)
+                }
+                if store.settings.preciseTrigger == .customKey {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HybridKeyRow(title: "カスタムキー", current: store.settings.preciseCustomKey) { c in
+                            store.settings.preciseCustomKey = c
+                            store.save()
+                        }
+                        Text("カスタムキーは修飾なしの単押しを推奨。§キー、英数、右⌥等、押せる未使用キーをキャプチャまたはリスト選択で割り当て。").font(.caption2).foregroundStyle(.secondary)
+                    }
+                }
+                HStack {
+                    Text("モード").frame(width: 80, alignment: .leading)
+                    Picker("", selection: Binding(get: { store.settings.preciseMode }, set: { v in
+                        store.settings.preciseMode = v; store.save()
+                    })) {
+                        Text("トグル（押すたびON/OFF）").tag(PreciseMode.toggle)
+                        Text("ホールド（押している間のみ）").tag(PreciseMode.hold)
+                    }.labelsHidden().pickerStyle(.radioGroup)
+                    .disabled(store.settings.preciseTrigger == .mouseTiltRight && store.settings.preciseMode == .hold)
+                }
+                if store.settings.preciseTrigger == .mouseTiltRight {
+                    Label("チルト右はホールド非対応（離上イベントがないため）。トグルのみ推奨。", systemImage: "info.circle").font(.caption2).foregroundStyle(.orange)
+                }
+                if store.settings.preciseTrigger == .capsLock {
+                    Label("CapsLockはflagsChangedで判定します。システムのCapsLock動作と競合する場合があります。", systemImage: "info.circle").font(.caption2).foregroundStyle(.secondary)
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("移動量スケール")
+                        Spacer()
+                        Text("\(Int(store.settings.preciseScale * 100))%").monospacedDigit().foregroundStyle(.secondary)
+                    }
+                    Slider(value: Binding(get: { store.settings.preciseScale }, set: { v in
+                        store.settings.preciseScale = min(max(v, 0.1), 1.0)
+                        store.save()
+                    }), in: 0.1...1.0, step: 0.05)
+                    HStack { Text("10%").font(.caption2).foregroundStyle(.secondary); Spacer(); Text("100%").font(.caption2).foregroundStyle(.secondary) }
+                }
+
+                HStack(spacing: 8) {
+                    Circle().fill(precise.isActive ? Color.green : Color.gray).frame(width: 12, height: 12)
+                    Text(precise.isActive ? "精密 ON（減速中）" : "精密 OFF").font(.caption).foregroundStyle(precise.isActive ? .green : .secondary)
+                    Spacer()
+                    Button(precise.isActive ? "OFFにする" : "ONにする") { precise.toggle() }
+                        .disabled(!store.settings.preciseEnabled || store.settings.preciseMode != .toggle)
+                }
+                .padding(8).background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .controlBackgroundColor)))
+
+                Label("注意: MVPでは精密モードはグローバル減速です。トラックパッドや他マウスも減速します。将来的にBSTBB700のみに限定するフィルタを追加予定。", systemImage: "info.circle")
+                    .font(.caption).foregroundStyle(.secondary)
+
+                if let msg = store.conflictMessage {
+                    Label(msg, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
+                }
             }
-
-            HStack(spacing: 8) {
-                Circle().fill(precise.isActive ? Color.green : Color.gray).frame(width: 12, height: 12)
-                Text(precise.isActive ? "精密 ON（減速中）" : "精密 OFF").font(.caption).foregroundStyle(precise.isActive ? .green : .secondary)
-                Spacer()
-                Button(precise.isActive ? "OFFにする" : "ONにする") { precise.toggle() }
-                    .disabled(!store.settings.preciseEnabled || store.settings.preciseMode != .toggle)
-            }
-            .padding(8).background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .controlBackgroundColor)))
-
-            Label("注意: MVPでは精密モードはグローバル減速です。トラックパッドや他マウスも減速します。将来的にBSTBB700のみに限定するフィルタを追加予定。", systemImage: "info.circle")
-                .font(.caption).foregroundStyle(.secondary)
-
-            if let msg = store.conflictMessage {
-                Label(msg, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
-            }
-
-            Spacer()
+            .padding(.top, 8)
+            .padding(.horizontal, 4)
         }
-        .padding(.top, 8)
     }
 
     private var discoveryTab: some View {

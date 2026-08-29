@@ -17,7 +17,7 @@ final class SettingsWindowController {
         let w = NSWindow(contentViewController: hosting)
         w.title = "BSTBB700 Customizer"
         w.styleMask = [.titled, .closable, .miniaturizable, .resizable]
-        w.setContentSize(NSSize(width: 560, height: 640))
+        w.setContentSize(NSSize(width: 640, height: 720))
         w.center()
         w.isReleasedWhenClosed = false
         w.makeKeyAndOrderFront(nil)
