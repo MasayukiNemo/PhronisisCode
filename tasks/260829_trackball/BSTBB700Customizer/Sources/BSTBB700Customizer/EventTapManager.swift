@@ -14,6 +14,12 @@ final class EventTapManager: ObservableObject {
     private var runLoopSource: CFRunLoopSource?
     private var discovery: HIDDiscovery?
     private var reenableTimer: Timer?
+    private let selfPID = Int64(getpid())
+    private let emitMagic: Int64 = 0xB700B700
+    private var handlingDepth: Int32 = 0
+    private var consecutiveTimeouts = 0
+    private var lastEscapeTimes: [CFTimeInterval] = []
+    private var lastLogTime: CFTimeInterval = 0
 
     // 相関窓: キーボード由来と区別するためのタイムスタンプ（将来拡張）
     private var lastIOHIDTimestamp: UInt64 = 0
@@ -129,12 +135,67 @@ final class EventTapManager: ObservableObject {
     // MARK: - Core routing
 
     private func handle(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+        // 0. system disabledは即時復帰（5回連続ならフェイルセーフ停止）
+        if type.rawValue == 0xFFFFFFFE || type.rawValue == 0xFFFFFFFD {
+            consecutiveTimeouts += 1
+            NSLog("[BSTBB700] tap disabled type=0x%X cnt=%d", type.rawValue, consecutiveTimeouts)
+            if consecutiveTimeouts >= 5 {
+                NSLog("[BSTBB700] 5 consecutive disables -> fail-safe stop")
+                DispatchQueue.main.async { self.stop() }
+                return Unmanaged.passUnretained(event)
+            }
+            if let t = tap { CGEvent.tapEnable(tap: t, enable: true) }
+            return Unmanaged.passUnretained(event)
+        }
+        consecutiveTimeouts = 0
+
+        // 1. kill-switch: /tmpファイルまたはEsc5連打で停止
+        if FileManager.default.fileExists(atPath: "/tmp/disable-bstbb700") {
+            return Unmanaged.passUnretained(event)
+        }
+        if type == .keyDown && event.getIntegerValueField(.keyboardEventKeycode) == 53 {
+            let now = CFAbsoluteTimeGetCurrent()
+            lastEscapeTimes.append(now)
+            lastEscapeTimes = lastEscapeTimes.filter { now - $0 < 2.0 }
+            if lastEscapeTimes.count >= 5 {
+                NSLog("[BSTBB700] Esc x5 kill-switch -> stop tap")
+                DispatchQueue.main.async { self.stop() }
+                return Unmanaged.passUnretained(event)
+            }
+        }
+
+        // 2. 自己生成イベントは素通し（PID + magic tagで再帰防止）
+        if event.getIntegerValueField(.eventSourceUnixProcessID) == selfPID {
+            return Unmanaged.passUnretained(event)
+        }
+        if event.getIntegerValueField(.eventSourceUserData) == emitMagic {
+            return Unmanaged.passUnretained(event)
+        }
+
+        // 3. 再入ガード
+        if handlingDepth != 0 {
+            return Unmanaged.passUnretained(event)
+        }
+        handlingDepth += 1
+        defer { handlingDepth -= 1 }
+
+        // 4. watchdog: 20ms超過で警告
+        let t0 = CFAbsoluteTimeGetCurrent()
+        defer {
+            let dt = CFAbsoluteTimeGetCurrent() - t0
+            if dt > 0.02 { NSLog("[BSTBB700] slow handle %.4f type=%d", dt, type.rawValue) }
+        }
+
         let store = MappingStore.shared
         let precise = PreciseEngine.shared
 
-        // Discoveryログ
+        // Discoveryログ（20Hz throttle）
         if store.settings.discoveryEnabled {
-            logEvent(type: type, event: event)
+            let now = CFAbsoluteTimeGetCurrent()
+            if now - lastLogTime > 0.05 {
+                lastLogTime = now
+                logEvent(type: type, event: event)
+            }
         }
 
         switch type {
@@ -229,13 +290,14 @@ final class EventTapManager: ObservableObject {
             return Unmanaged.passUnretained(event)
 
         case .mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged:
-            // 精密モード中はdeltaを同期的に1回だけスケール。Taskは使わない（Use-after-return回避）
             if precise.isActive {
-                let s = min(max(MappingStore.shared.settings.preciseScale, 0.1), 1.0)
-                let dx = event.getDoubleValueField(.mouseEventDeltaX) * s
-                let dy = event.getDoubleValueField(.mouseEventDeltaY) * s
-                event.setDoubleValueField(.mouseEventDeltaX, value: dx)
-                event.setDoubleValueField(.mouseEventDeltaY, value: dy)
+                let s = min(max(MappingStore.shared.settings.preciseScale, 0.25), 1.0)
+                if s < 0.99 {
+                    let dx = event.getDoubleValueField(.mouseEventDeltaX) * s
+                    let dy = event.getDoubleValueField(.mouseEventDeltaY) * s
+                    event.setDoubleValueField(.mouseEventDeltaX, value: dx)
+                    event.setDoubleValueField(.mouseEventDeltaY, value: dy)
+                }
             }
             return Unmanaged.passUnretained(event)
 
@@ -261,6 +323,6 @@ final class EventTapManager: ObservableObject {
         let flags = event.flags.rawValue
         let msg = "type=\(type.rawValue) btn=\(btn) key=\(kc) h=\(String(format: "%.2f", h)) v=\(String(format: "%.2f", v)) flags=\(flags)"
         discovery?.append(msg)
-        DispatchQueue.main.async { [weak self] in self?.lastEventDescription = msg }
+        lastEventDescription = msg
     }
 }

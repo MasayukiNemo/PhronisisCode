@@ -82,7 +82,7 @@ final class MappingStore: ObservableObject {
             loaded = AppSettings()
         }
         var s = loaded
-        if s.preciseScale < 0.1 { s.preciseScale = 0.1 }
+        if s.preciseScale < 0.25 { s.preciseScale = 0.25 }
         if s.preciseScale > 1.0 { s.preciseScale = 1.0 }
         self.settings = s
     }

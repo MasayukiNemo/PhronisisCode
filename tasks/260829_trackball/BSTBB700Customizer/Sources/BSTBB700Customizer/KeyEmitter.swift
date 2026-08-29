@@ -2,12 +2,18 @@ import CoreGraphics
 import AppKit
 
 enum KeyEmitter {
-    /// KeyComboをグローバルに送信。修飾キーはflagsで付与し、keyDown/keyUpを順にpost。
+    private static let emitMagic: Int64 = 0xB700B700
+    private static var emitSource: CGEventSource? = {
+        let s = CGEventSource(stateID: .hidSystemState)
+        s?.localEventsSuppressionInterval = 0
+        return s
+    }()
+
+    /// KeyComboをグローバルに送信。自己生成タグを付与し再帰を防止。
     static func emit(combo: KeyCombo) {
         let flags = CGEventFlags(rawValue: combo.modifierFlags)
         let keyCode = CGKeyCode(combo.keyCode)
 
-        // 権限チェック (macOS 14+): CGPreflightPostEventAccessがあれば使う
         if #available(macOS 14.0, *) {
             if !CGPreflightPostEventAccess() {
                 NSLog("[BSTBB700] KeyEmitter: PostEvent access denied, please grant Input Monitoring")
@@ -15,17 +21,16 @@ enum KeyEmitter {
             }
         }
 
-        guard let down = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: true),
-              let up = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: false) else {
+        guard let down = CGEvent(keyboardEventSource: emitSource, virtualKey: keyCode, keyDown: true),
+              let up = CGEvent(keyboardEventSource: emitSource, virtualKey: keyCode, keyDown: false) else {
             NSLog("[BSTBB700] KeyEmitter: failed to create keyboard event keyCode=\(keyCode)")
             return
         }
         down.flags = flags
         up.flags = flags
-        // TAPは hidEventTap
+        down.setIntegerValueField(.eventSourceUserData, value: emitMagic)
+        up.setIntegerValueField(.eventSourceUserData, value: emitMagic)
         down.post(tap: .cghidEventTap)
-        // 少し待つと修飾が確実に届く（連続送信時の取りこぼし防止）
-        // usleep 1000 は使わず、即時postでOK。必要なら遅延を入れる。
         up.post(tap: .cghidEventTap)
         NSLog("[BSTBB700] emitted \(combo.readable) keyCode=\(keyCode) flags=\(flags.rawValue)")
     }

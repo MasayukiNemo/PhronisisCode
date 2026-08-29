@@ -105,11 +105,11 @@ struct SettingsView: View {
                         Spacer()
                         Text("\(Int(store.settings.preciseScale * 100))%").monospacedDigit().foregroundStyle(.secondary)
                     }
-                    Slider(value: Binding(get: { store.settings.preciseScale }, set: { v in
-                        store.settings.preciseScale = min(max(v, 0.1), 1.0)
-                        store.save()
-                    }), in: 0.1...1.0, step: 0.05)
-                    HStack { Text("10%").font(.caption2).foregroundStyle(.secondary); Spacer(); Text("100%").font(.caption2).foregroundStyle(.secondary) }
+                Slider(value: Binding(get: { store.settings.preciseScale }, set: { v in
+                    store.settings.preciseScale = min(max(v, 0.25), 1.0)
+                    store.save()
+                }), in: 0.25...1.0, step: 0.05)
+                HStack { Text("25%").font(.caption2).foregroundStyle(.secondary); Spacer(); Text("100%").font(.caption2).foregroundStyle(.secondary) }
                 }
 
                 HStack(spacing: 8) {
