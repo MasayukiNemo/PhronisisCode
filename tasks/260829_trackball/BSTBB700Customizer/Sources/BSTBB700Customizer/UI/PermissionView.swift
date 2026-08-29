@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import ApplicationServices
 
 struct PermissionView: View {
     @State private var axTrusted: Bool = AXIsProcessTrusted()
@@ -53,17 +54,45 @@ struct PermissionView: View {
                 if !listenOK {
                     VStack(alignment: .leading, spacing: 4) {
                         Button("入力監視の許可を要求") {
-                            if #available(macOS 10.15, *) { _ = CGRequestListenEventAccess() }
-                            refreshAndRestartIfNeeded()
+                            var requested = false
+                            if #available(macOS 10.15, *) { requested = CGRequestListenEventAccess() }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                                refreshAndRestartIfNeeded()
+                                if #available(macOS 10.15, *), !CGPreflightListenEventAccess() {
+                                    openPrivacyPane("Privacy_InputMonitoring")
+                                }
+                            }
+                            if !requested {
+                                // 初回以外はダイアログが出ないため直接設定を開く
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    openPrivacyPane("Privacy_InputMonitoring")
+                                }
+                            }
                         }.font(.caption)
                         Text("再ビルド後は古い許可が無効になります。入力監視の一覧から BSTBB700Customizer を「-」で削除し、「+」でこの .app を再追加してください。").font(.caption2).foregroundStyle(.orange)
                     }
                 }
                 if !postOK {
-                    Button("イベント送信の許可を要求") {
-                        if #available(macOS 10.15, *) { _ = CGRequestPostEventAccess() }
-                        refreshAndRestartIfNeeded()
-                    }.font(.caption)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Button("イベント送信の許可を要求") {
+                            // Postは実体がアクセシビリティ。CGRequestは初回のみダイアログ、拒否後は手動で設定を開く必要あり
+                            var requested = false
+                            if #available(macOS 10.15, *) { requested = CGRequestPostEventAccess() }
+                            if !requested {
+                                // AXIsProcessTrustedWithOptionsでアクセシビリティのプロンプトを出す（初回のみ有効）
+                                let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+                                _ = AXIsProcessTrustedWithOptions(opts)
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                                refreshAndRestartIfNeeded()
+                                // ダイアログが出ない場合は設定画面を直接開く
+                                if !CGPreflightPostEventAccess() {
+                                    openPrivacyPane("Privacy_Accessibility")
+                                }
+                            }
+                        }.font(.caption)
+                        Text("Postはアクセシビリティと同一です。ダイアログが出ない場合は「アクセシビリティを開く」で手動で追加してください。").font(.caption2).foregroundStyle(.secondary)
+                    }
                 }
             } else {
                 Text("権限は正常です。EventTap動作中。進む/戻るやチルトの割り当てをお試しください。")
