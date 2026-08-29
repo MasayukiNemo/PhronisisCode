@@ -1,0 +1,1 @@
+Resources placeholder — 将来アイコン等を配置。LSUIElement=YESのためDockアイコン不要だが、About表示用にAppIconを置く予定。
