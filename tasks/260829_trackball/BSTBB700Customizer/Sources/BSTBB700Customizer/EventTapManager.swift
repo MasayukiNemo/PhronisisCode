@@ -361,34 +361,45 @@ final class EventTapManager: ObservableObject {
             }
             let dxRaw = event.getIntegerValueField(.mouseEventDeltaX)
             let dyRaw = event.getIntegerValueField(.mouseEventDeltaY)
-            let cursorInv = MappingStore.shared.settings.cursorInverted
-            let dx = cursorInv ? -dxRaw : dxRaw
-            let dy = cursorInv ? -dyRaw : dyRaw
+            let s = MappingStore.shared.settings
+            let invX = s.cursorInverted || s.cursorInvertedX
+            let invY = s.cursorInverted || s.cursorInvertedY
+            let dx = invX ? -dxRaw : dxRaw
+            let dy = invY ? -dyRaw : dyRaw
             var scaledDx = dx
             var scaledDy = dy
             var didScale = false
             var consumedAndWarped = false
             if precise.isActive {
-                let s = min(max(MappingStore.shared.settings.preciseScale, 0.25), 1.0)
-                if s < 0.99 && (dx != 0 || dy != 0) {
-                    let rawDx = Double(dx) + warpRemainderX
-                    let rawDy = Double(dy) + warpRemainderY
-                    let ndx = rawDx * s
-                    let ndy = rawDy * s
+                let scale = min(max(MappingStore.shared.settings.preciseScale, 0.25), 1.0)
+                if scale < 0.99 && (dxRaw != 0 || dyRaw != 0) {
+                    // 精密時はHIDの生delta(dxRaw)基準でスケールし、一般の反転とは独立させる
+                    let rawDx = Double(dxRaw) + warpRemainderX
+                    let rawDy = Double(dyRaw) + warpRemainderY
+                    let ndx = rawDx * scale
+                    let ndy = rawDy * scale
                     scaledDx = Int64(ndx)
                     scaledDy = Int64(ndy)
                     warpRemainderX = ndx - Double(scaledDx)
                     warpRemainderY = ndy - Double(scaledDy)
                     let cgCur = event.location
-                    let inv = MappingStore.shared.settings.preciseInverted
-                    let nloc: CGPoint
-                    if inv {
-                        nloc = CGPoint(x: cgCur.x + CGFloat(scaledDx - dx), y: cgCur.y + CGFloat(scaledDy - dy))
-                    } else {
-                        nloc = CGPoint(x: cgCur.x - CGFloat(dx + scaledDx), y: cgCur.y - CGFloat(dy + scaledDy))
-                    }
+                    let oldPos = CGPoint(x: cgCur.x - CGFloat(dxRaw), y: cgCur.y - CGFloat(dyRaw))
+                    let invX = MappingStore.shared.settings.preciseInverted || MappingStore.shared.settings.preciseInvertedX
+                    let invY = MappingStore.shared.settings.preciseInverted || MappingStore.shared.settings.preciseInvertedY
+                    let nx = invX ? oldPos.x - CGFloat(scaledDx) : oldPos.x + CGFloat(scaledDx)
+                    let ny = invY ? oldPos.y - CGFloat(scaledDy) : oldPos.y + CGFloat(scaledDy)
+                    let nloc = CGPoint(x: nx, y: ny)
                     isWarping = true
                     CGWarpMouseCursorPosition(nloc)
+                    // デバッグ用にrawとscaledとnlocをログ
+                    if debugLogEnabled, let fh = debugLogFile {
+                        let line = String(format: "precise warp raw=%d,%d scaled=%d,%d invX=%d invY=%d old=%.1f,%.1f cur=%.1f,%.1f nloc=%.1f,%.1f\n", dxRaw, dyRaw, invX ? 1 : 0, invY ? 1 : 0, oldPos.x, oldPos.y, cgCur.x, cgCur.y, scaledDx, scaledDy, nloc.x, nloc.y)
+                        if let data = line.data(using: .utf8) { try? fh.write(contentsOf: data) }
+                    }
+                    if debugLogEnabled, let fh = debugLogFile {
+                        let line = String(format: "warp raw=%d,%d invX=%d invY=%d old=%.1f,%.1f cur=%.1f,%.1f scaled=%d,%d nloc=%.1f,%.1f\n", dxRaw, dyRaw, invX ? 1 : 0, invY ? 1 : 0, oldPos.x, oldPos.y, cgCur.x, cgCur.y, scaledDx, scaledDy, nloc.x, nloc.y)
+                        if let data = line.data(using: .utf8) { try? fh.write(contentsOf: data) }
+                    }
                     didScale = true
                     consumedAndWarped = true
                 } else if dx == 0 && dy == 0 {
@@ -396,12 +407,12 @@ final class EventTapManager: ObservableObject {
                     warpRemainderX = 0
                     warpRemainderY = 0
                 }
-            } else if cursorInv && (dxRaw != 0 || dyRaw != 0) {
-                // 精密OFFだがカーソル反転が必要な場合
+            } else if (s.cursorInverted || s.cursorInvertedX || s.cursorInvertedY) && (dxRaw != 0 || dyRaw != 0) {
                 let cgCur = event.location
-                let nloc = CGPoint(x: cgCur.x + CGFloat(dx - dxRaw), y: cgCur.y + CGFloat(dy - dyRaw))
+                let oldPos = CGPoint(x: cgCur.x - CGFloat(dxRaw), y: cgCur.y - CGFloat(dyRaw))
+                let nloc2 = CGPoint(x: oldPos.x + CGFloat(dx), y: oldPos.y + CGFloat(dy))
                 isWarping = true
-                CGWarpMouseCursorPosition(nloc)
+                CGWarpMouseCursorPosition(nloc2)
                 scaledDx = dx
                 scaledDy = dy
                 didScale = true
