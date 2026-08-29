@@ -26,6 +26,8 @@ final class EventTapManager: ObservableObject {
     private var debugLogEnabled = false
     var isDebugLogEnabled: Bool { debugLogEnabled }
     private var debugLogFile: FileHandle?
+    private var isWarping = false
+    private var warpExpectTime: CFTimeInterval = 0
 
     // 相関窓: キーボード由来と区別するためのタイムスタンプ（将来拡張）
     private var lastIOHIDTimestamp: UInt64 = 0
@@ -352,6 +354,14 @@ final class EventTapManager: ObservableObject {
             return Unmanaged.passUnretained(event)
 
         case .mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged:
+            // Warpで生成された合成イベントはスケールせず素通し
+            if isWarping {
+                // Warp直後の1イベントは合成なのでスキップ。0.05秒以内の連続は同様に素通し
+                if CFAbsoluteTimeGetCurrent() - warpExpectTime < 0.05 {
+                    return Unmanaged.passUnretained(event)
+                }
+                isWarping = false
+            }
             let dx = event.getIntegerValueField(.mouseEventDeltaX)
             let dy = event.getIntegerValueField(.mouseEventDeltaY)
             var scaledDx = dx
@@ -367,13 +377,13 @@ final class EventTapManager: ObservableObject {
                     let inv = MappingStore.shared.settings.preciseInverted
                     let nloc: CGPoint
                     if inv {
-                        // 反転時は逆方向に scaled 分だけ動かす (oldPos - scaled)
                         nloc = CGPoint(x: cgCur.x - CGFloat(dx + scaledDx), y: cgCur.y - CGFloat(dy + scaledDy))
                     } else {
                         nloc = CGPoint(x: cgCur.x + CGFloat(scaledDx - dx), y: cgCur.y + CGFloat(scaledDy - dy))
                     }
+                    isWarping = true
+                    warpExpectTime = CFAbsoluteTimeGetCurrent()
                     CGWarpMouseCursorPosition(nloc)
-                    // 元のイベントは消費して、システムの通常移動を止める
                     didScale = true
                     consumedAndWarped = true
                 }
