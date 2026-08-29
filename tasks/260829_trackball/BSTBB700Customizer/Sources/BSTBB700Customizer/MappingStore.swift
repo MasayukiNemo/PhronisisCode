@@ -63,9 +63,10 @@ struct AppSettings: Codable, Sendable {
     var verticalScrollPassthrough: Bool = true
     var preciseCustomKey: KeyCombo? = nil
     var tiltInverted: Bool = false
+    var preciseInverted: Bool = false
 
     enum CodingKeys: String, CodingKey {
-        case mappings, preciseEnabled, preciseTrigger, preciseMode, preciseScale, discoveryEnabled, filterByDevice, verticalScrollPassthrough, preciseCustomKey, tiltInverted
+        case mappings, preciseEnabled, preciseTrigger, preciseMode, preciseScale, discoveryEnabled, filterByDevice, verticalScrollPassthrough, preciseCustomKey, tiltInverted, preciseInverted
     }
 
     init() {}
@@ -82,6 +83,7 @@ struct AppSettings: Codable, Sendable {
         verticalScrollPassthrough = try c.decodeIfPresent(Bool.self, forKey: .verticalScrollPassthrough) ?? true
         preciseCustomKey = try c.decodeIfPresent(KeyCombo.self, forKey: .preciseCustomKey)
         tiltInverted = try c.decodeIfPresent(Bool.self, forKey: .tiltInverted) ?? false
+        preciseInverted = try c.decodeIfPresent(Bool.self, forKey: .preciseInverted) ?? false
     }
 }
 

@@ -364,7 +364,13 @@ final class EventTapManager: ObservableObject {
                     scaledDx = Int64(Double(dx) * s)
                     scaledDy = Int64(Double(dy) * s)
                     let cgCur = event.location
-                    let nloc = CGPoint(x: cgCur.x + CGFloat(scaledDx - dx), y: cgCur.y + CGFloat(scaledDy - dy))
+                    let inv = MappingStore.shared.settings.preciseInverted
+                    let nloc: CGPoint
+                    if inv {
+                        nloc = CGPoint(x: cgCur.x - CGFloat(scaledDx - dx), y: cgCur.y - CGFloat(scaledDy - dy))
+                    } else {
+                        nloc = CGPoint(x: cgCur.x + CGFloat(scaledDx - dx), y: cgCur.y + CGFloat(scaledDy - dy))
+                    }
                     CGWarpMouseCursorPosition(nloc)
                     // 元のイベントは消費して、システムの通常移動を止める
                     didScale = true

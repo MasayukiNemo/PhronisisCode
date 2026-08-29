@@ -112,6 +112,8 @@ struct SettingsView: View {
                     store.save()
                 }), in: 0.25...1.0, step: 0.05)
                 HStack { Text("25%").font(.caption2).foregroundStyle(.secondary); Spacer(); Text("100%").font(.caption2).foregroundStyle(.secondary) }
+                    Toggle("精密時の移動方向が逆の場合はON（上下左右反転を補正）", isOn: Binding(get: { store.settings.preciseInverted }, set: { v in store.settings.preciseInverted = v; store.save() }))
+                        .font(.caption2).toggleStyle(.switch)
                 }
 
                 HStack(spacing: 8) {
