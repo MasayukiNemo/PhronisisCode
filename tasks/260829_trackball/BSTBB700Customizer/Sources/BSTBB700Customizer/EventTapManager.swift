@@ -22,8 +22,8 @@ final class EventTapManager: ObservableObject {
 
     func start() {
         guard tap == nil else { return }
-        guard checkAccessibility() else {
-            NSLog("[BSTBB700] EventTap not started: accessibility denied")
+        guard canStartTap() else {
+            NSLog("[BSTBB700] EventTap not started: Input Monitoring or Accessibility denied")
             return
         }
 
@@ -92,14 +92,38 @@ final class EventTapManager: ObservableObject {
         }
     }
 
+    /// 表示用: 3点すべてが揃っているか（AX + Listen + Post）
     func checkAccessibility() -> Bool {
-        // AXIsProcessTrusted + CGPreflight
         let trusted = AXIsProcessTrusted()
-        if #available(macOS 14.0, *) {
-            let postOK = CGPreflightPostEventAccess()
-            return trusted && postOK
+        let listenOK: Bool
+        let postOK: Bool
+        if #available(macOS 10.15, *) {
+            listenOK = CGPreflightListenEventAccess()
+            postOK = CGPreflightPostEventAccess()
+        } else {
+            listenOK = true
+            postOK = true
         }
-        return trusted
+        return trusted && listenOK && postOK
+    }
+
+    /// 起動用: tap生成に必須なAX + Listenのみ（Postはemit時に必要だがtap生成は止めない）
+    func canStartTap() -> Bool {
+        let trusted = AXIsProcessTrusted()
+        let listenOK: Bool
+        if #available(macOS 10.15, *) {
+            listenOK = CGPreflightListenEventAccess()
+        } else {
+            listenOK = true
+        }
+        return trusted && listenOK
+    }
+
+    func canEmit() -> Bool {
+        if #available(macOS 10.15, *) {
+            return CGPreflightPostEventAccess()
+        }
+        return AXIsProcessTrusted()
     }
 
     // MARK: - Core routing

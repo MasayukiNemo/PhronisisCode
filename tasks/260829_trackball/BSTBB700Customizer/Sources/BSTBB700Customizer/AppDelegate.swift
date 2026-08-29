@@ -13,8 +13,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupStatusItem()
         discovery.start()
         eventTap.setDiscovery(discovery)
-        // 権限があれば自動開始、なければPermissionViewで誘導
-        if eventTap.checkAccessibility() {
+        // 権限があれば自動開始、なければPermissionViewで誘導（Post未許可でもtapは起動）
+        if eventTap.canStartTap() {
             eventTap.start()
         } else {
             NSLog("[BSTBB700] Needs Input Monitoring permission — showing settings")

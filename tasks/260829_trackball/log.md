@@ -17,6 +17,13 @@
 | 2026-08-29 10:25 | Metisレビュー: 重大3件（二重スケール/チルトhold/CapsLock、didSetループ、RunLoop二重登録）を指摘、要修正判定 | 要修正 |
 | 2026-08-29 10:35 | 修正: EventTap二重適用除去+Timer/RunLoop重複除去、PreciseEngineチルトholdフォールバック+CapsLock flagsChanged、MappingStore didSet廃止、SettingsView save一本化+HIDDiscovery id/sort修正 | OK |
 | 2026-08-29 10:37 | 再ビルド: swift build PASS(1.63s), build.sh ad-hoc署名 PASS, code_health_check 5/5 PASS | PASS |
+| 2026-08-29 11:10 | バグ報告: F13がMacBookで押せない、誰も使わないキー設定の要求と矛盾 | OK |
+| 2026-08-29 11:15 | 修正: PreciseTriggerにcustomKey追加、AppSettings.preciseCustomKey追加、PreciseEngineでcustom優先判定、SettingsViewでHybrid化の前段 | OK |
+| 2026-08-29 11:30 | 改善要望: キャプチャ+リスト選択のハイブリッド化（Logitech/ELECOM/Keychron参照） | OK |
+| 2026-08-29 11:35 | 実装: KeyComboBuilderView追加、HybridKeyRowでキャプチャとビルダーを統合、プリセット12種、F13等押せないキーもリスト選択可能に | OK |
+| 2026-08-29 11:40 | バグ報告: 権限与えても権限要求が消えない | OK |
+| 2026-08-29 11:45 | Metisレビュー: 3点個別表示は良いがPostでtap停止はover-check、Timer二重登録と伝達不足を指摘、要修正 | 要修正 |
+| 2026-08-29 11:50 | 修正: canStartTapをAX+Listenのみに分離、canEmit分離、PermissionViewで3点表示+自動再起動をcanStartTapで判定、Timer二重登録解消、文言にListen/Post/AXの役割を追記 | OK |
 
 ## 自己検証（80%とは brief.md 成功基準の必須項目に対するテスト/手動確認の通過率）
 
