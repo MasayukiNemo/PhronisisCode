@@ -202,12 +202,29 @@ final class EventTapManager: ObservableObject {
         case .keyDown:
             let kc = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
             let flags = event.flags
-            // 進む/戻るがキーボードエミュレーション(⌘] / ⌘[)の場合も精密トリガーとして消費
+            // BSTBB700特殊仕様: 進む/戻るが Ctrl+→/Ctrl+← として送られる
+            if flags.contains(.maskControl) && kc == 124 {
+                // Ctrl+→ = 進む
+                if precise.handleMouseTrigger(button: .forward, isDown: true) { return nil }
+                if store.isPreciseTriggerConsuming(button: .forward) { return nil }
+                if let combo = store.mapping(for: .forward) {
+                    KeyEmitter.emit(combo: combo)
+                    return nil
+                }
+                // 未割り当ては素通し（デフォルトのCtrl+→を維持）
+            }
+            if flags.contains(.maskControl) && kc == 123 {
+                // Ctrl+← = 戻る
+                if precise.handleMouseTrigger(button: .back, isDown: true) { return nil }
+                if store.isPreciseTriggerConsuming(button: .back) { return nil }
+                if let combo = store.mapping(for: .back) {
+                    KeyEmitter.emit(combo: combo)
+                    return nil
+                }
+            }
+            // 旧仕様の⌘]/⌘[もフォールバックで対応
             if store.settings.preciseTrigger == .mouseForward, flags.contains(.maskCommand), kc == 30 {
                 if precise.handleMouseTrigger(button: .forward, isDown: true) { return nil }
-            }
-            if store.settings.preciseTrigger == .mouseForward, flags.contains(.maskCommand), kc == 33 {
-                // 戻るのエミュレーションが来ても進むトリガーとはみなさない（将来拡張）
             }
             if precise.handleKeyboardTrigger(keyCode: kc, isDown: true) {
                 return nil
@@ -217,6 +234,14 @@ final class EventTapManager: ObservableObject {
         case .keyUp:
             let kc = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
             let flagsUp = event.flags
+            if flagsUp.contains(.maskControl) && kc == 124 {
+                if precise.handleMouseTrigger(button: .forward, isDown: false) { return nil }
+                if store.mapping(for: .forward) != nil || store.isPreciseTriggerConsuming(button: .forward) { return nil }
+            }
+            if flagsUp.contains(.maskControl) && kc == 123 {
+                if precise.handleMouseTrigger(button: .back, isDown: false) { return nil }
+                if store.mapping(for: .back) != nil || store.isPreciseTriggerConsuming(button: .back) { return nil }
+            }
             if store.settings.preciseTrigger == .mouseForward, flagsUp.contains(.maskCommand), kc == 30 {
                 if precise.handleMouseTrigger(button: .forward, isDown: false) { return nil }
             }
