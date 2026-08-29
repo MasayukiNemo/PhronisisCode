@@ -357,17 +357,18 @@ final class EventTapManager: ObservableObject {
             var scaledDx = dx
             var scaledDy = dy
             var didScale = false
+            var consumedAndWarped = false
             if precise.isActive {
                 let s = min(max(MappingStore.shared.settings.preciseScale, 0.25), 1.0)
                 if s < 0.99 && (dx != 0 || dy != 0) {
                     scaledDx = Int64(Double(dx) * s)
                     scaledDy = Int64(Double(dy) * s)
-                    event.setIntegerValueField(.mouseEventDeltaX, value: scaledDx)
-                    event.setIntegerValueField(.mouseEventDeltaY, value: scaledDy)
-                    let loc = event.location
-                    let nloc = CGPoint(x: loc.x + CGFloat(Double(dx) * (s - 1.0)), y: loc.y + CGFloat(Double(dy) * (s - 1.0)))
-                    event.location = nloc
+                    let cgCur = event.location
+                    let nloc = CGPoint(x: cgCur.x + CGFloat(scaledDx - dx), y: cgCur.y + CGFloat(scaledDy - dy))
+                    CGWarpMouseCursorPosition(nloc)
+                    // 元のイベントは消費して、システムの通常移動を止める
                     didScale = true
+                    consumedAndWarped = true
                 }
             }
             let now2 = CFAbsoluteTimeGetCurrent()
@@ -378,8 +379,11 @@ final class EventTapManager: ObservableObject {
                 }
             }
             if didScale, debugLogEnabled, let fh = debugLogFile {
-                let line = String(format: "%.3f precise dx=%d dy=%d -> %d %d scale=%.2f loc=%.1f,%.1f\n", now2, dx, dy, scaledDx, scaledDy, MappingStore.shared.settings.preciseScale, event.location.x, event.location.y)
+                let line = String(format: "%.3f precise dx=%d dy=%d -> %d %d scale=%.2f warped=%d\n", now2, dx, dy, scaledDx, scaledDy, MappingStore.shared.settings.preciseScale, consumedAndWarped ? 1 : 0)
                 if let data = line.data(using: .utf8) { try? fh.write(contentsOf: data) }
+            }
+            if consumedAndWarped {
+                return nil
             }
             return Unmanaged.passUnretained(event)
 
