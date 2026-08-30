@@ -146,8 +146,20 @@ final class EventTapManager: ObservableObject {
         if enabled {
             let path = "/tmp/bstbb700_debug.log"
             FileManager.default.createFile(atPath: path, contents: nil)
-            debugLogFile = FileHandle(forWritingAtPath: path)
-            NSLog("[BSTBB700] debug log enabled at \(path)")
+            // forWritingAtPath is deprecated and can return nil on APFS; use URL-based API
+            if let fh = FileHandle(forWritingAtPath: path) {
+                debugLogFile = fh
+            } else {
+                do {
+                    let url = URL(fileURLWithPath: path)
+                    debugLogFile = try FileHandle(forWritingTo: url)
+                    try debugLogFile?.truncate(atOffset: 0)
+                } catch {
+                    NSLog("[BSTBB700] debug log open failed: \(error)")
+                    debugLogFile = nil
+                }
+            }
+            NSLog("[BSTBB700] debug log enabled at \(path) fh=\(debugLogFile != nil ? "ok" : "nil")")
         } else {
             try? debugLogFile?.close()
             debugLogFile = nil
@@ -359,8 +371,11 @@ final class EventTapManager: ObservableObject {
                 isWarping = false
                 return Unmanaged.passUnretained(event)
             }
-            let dxRaw = event.getIntegerValueField(.mouseEventDeltaX)
-            let dyRaw = event.getIntegerValueField(.mouseEventDeltaY)
+            var dxRaw = event.getIntegerValueField(.mouseEventDeltaX)
+            var dyRaw = event.getIntegerValueField(.mouseEventDeltaY)
+            // HID自体の符号が逆の場合の補正（精密とは独立）
+            if MappingStore.shared.settings.hidInvertedX { dxRaw = -dxRaw }
+            if MappingStore.shared.settings.hidInvertedY { dyRaw = -dyRaw }
             let s = MappingStore.shared.settings
             let invX = s.cursorInverted || s.cursorInvertedX
             let invY = s.cursorInverted || s.cursorInvertedY
@@ -391,11 +406,7 @@ final class EventTapManager: ObservableObject {
                     let nloc = CGPoint(x: nx, y: ny)
                     isWarping = true
                     CGWarpMouseCursorPosition(nloc)
-                    // デバッグ用にrawとscaledとnlocをログ
-                    if debugLogEnabled, let fh = debugLogFile {
-                        let line = String(format: "precise warp raw=%d,%d scaled=%d,%d invX=%d invY=%d old=%.1f,%.1f cur=%.1f,%.1f nloc=%.1f,%.1f\n", dxRaw, dyRaw, invX ? 1 : 0, invY ? 1 : 0, oldPos.x, oldPos.y, cgCur.x, cgCur.y, scaledDx, scaledDy, nloc.x, nloc.y)
-                        if let data = line.data(using: .utf8) { try? fh.write(contentsOf: data) }
-                    }
+                    // デバッグ用にrawとscaledとnlocをログ（String(format:)のscaled位置にinvを渡すバグ修正済み・重複行解消）
                     if debugLogEnabled, let fh = debugLogFile {
                         let line = String(format: "warp raw=%d,%d invX=%d invY=%d old=%.1f,%.1f cur=%.1f,%.1f scaled=%d,%d nloc=%.1f,%.1f\n", dxRaw, dyRaw, invX ? 1 : 0, invY ? 1 : 0, oldPos.x, oldPos.y, cgCur.x, cgCur.y, scaledDx, scaledDy, nloc.x, nloc.y)
                         if let data = line.data(using: .utf8) { try? fh.write(contentsOf: data) }

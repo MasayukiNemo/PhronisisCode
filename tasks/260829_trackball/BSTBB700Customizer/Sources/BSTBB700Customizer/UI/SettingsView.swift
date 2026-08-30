@@ -114,6 +114,11 @@ struct SettingsView: View {
                 HStack { Text("25%").font(.caption2).foregroundStyle(.secondary); Spacer(); Text("100%").font(.caption2).foregroundStyle(.secondary) }
                     Toggle("精密時の移動方向が逆の場合はON（上下左右反転を補正）", isOn: Binding(get: { store.settings.preciseInverted }, set: { v in store.settings.preciseInverted = v; store.save() }))
                         .font(.caption2).toggleStyle(.switch)
+                    HStack(spacing: 12) {
+                        Toggle("左右のみ", isOn: Binding(get: { store.settings.preciseInvertedX }, set: { v in store.settings.preciseInvertedX = v; store.save() })).font(.caption2).toggleStyle(.switch)
+                        Toggle("上下のみ", isOn: Binding(get: { store.settings.preciseInvertedY }, set: { v in store.settings.preciseInvertedY = v; store.save() })).font(.caption2).toggleStyle(.switch)
+                    }
+                    Text("精密時だけ逆になる場合は、こちらで軸ごとに補正。一般の反転と二重にかけて逆になる場合は、一般をOFFにして精密側だけで調整。").font(.caption2).foregroundStyle(.secondary)
                 }
 
                 HStack(spacing: 8) {
@@ -197,6 +202,18 @@ struct SettingsView: View {
                 Text("カーソル").font(.subheadline)
                 Toggle("カーソルの上下左右が逆の場合はON（根本的な反転を補正）", isOn: Binding(get: { store.settings.cursorInverted }, set: { v in store.settings.cursorInverted = v; store.save() }))
                     .font(.caption).toggleStyle(.switch)
+                HStack(spacing: 12) {
+                    Toggle("左右のみ反転", isOn: Binding(get: { store.settings.cursorInvertedX }, set: { v in store.settings.cursorInvertedX = v; store.save() })).font(.caption2).toggleStyle(.switch)
+                    Toggle("上下のみ反転", isOn: Binding(get: { store.settings.cursorInvertedY }, set: { v in store.settings.cursorInvertedY = v; store.save() })).font(.caption2).toggleStyle(.switch)
+                }
+                Text("球を右に転がして左に動くなら左右を、球を上に転がして下に動くなら上下を個別にON。両方逆なら上の一括トグルをON。").font(.caption2).foregroundStyle(.secondary)
+                Divider()
+                Text("HID生データの反転（精密とは独立）").font(.caption2).bold()
+                HStack(spacing: 12) {
+                    Toggle("HID左右反転", isOn: Binding(get: { store.settings.hidInvertedX }, set: { v in store.settings.hidInvertedX = v; store.save() })).font(.caption2).toggleStyle(.switch)
+                    Toggle("HID上下反転", isOn: Binding(get: { store.settings.hidInvertedY }, set: { v in store.settings.hidInvertedY = v; store.save() })).font(.caption2).toggleStyle(.switch)
+                }
+                Text("HIDの生delta自体が逆の場合にON。精密OFFで正常ならOFFのまま、精密ONで逆になる場合はHIDのX/Yを個別にONにして試す。").font(.caption2).foregroundStyle(.secondary)
                 Text("トラックボールの球を転がした方向とカーソルが逆に動く場合にON。精密時の反転トグルとは別で、通常時のカーソル移動自体を反転します。").font(.caption2).foregroundStyle(.secondary)
             }
             Divider()

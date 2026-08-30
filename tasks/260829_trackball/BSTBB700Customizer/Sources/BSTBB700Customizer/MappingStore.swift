@@ -65,9 +65,15 @@ struct AppSettings: Codable, Sendable {
     var tiltInverted: Bool = false
     var preciseInverted: Bool = false
     var cursorInverted: Bool = false
+    var cursorInvertedX: Bool = false
+    var cursorInvertedY: Bool = false
+    var preciseInvertedX: Bool = false
+    var preciseInvertedY: Bool = false
+    var hidInvertedX: Bool = false
+    var hidInvertedY: Bool = false
 
     enum CodingKeys: String, CodingKey {
-        case mappings, preciseEnabled, preciseTrigger, preciseMode, preciseScale, discoveryEnabled, filterByDevice, verticalScrollPassthrough, preciseCustomKey, tiltInverted, preciseInverted, cursorInverted
+        case mappings, preciseEnabled, preciseTrigger, preciseMode, preciseScale, discoveryEnabled, filterByDevice, verticalScrollPassthrough, preciseCustomKey, tiltInverted, preciseInverted, cursorInverted, cursorInvertedX, cursorInvertedY, preciseInvertedX, preciseInvertedY, hidInvertedX, hidInvertedY
     }
 
     init() {}
@@ -86,6 +92,12 @@ struct AppSettings: Codable, Sendable {
         tiltInverted = try c.decodeIfPresent(Bool.self, forKey: .tiltInverted) ?? false
         preciseInverted = try c.decodeIfPresent(Bool.self, forKey: .preciseInverted) ?? false
         cursorInverted = try c.decodeIfPresent(Bool.self, forKey: .cursorInverted) ?? false
+        cursorInvertedX = try c.decodeIfPresent(Bool.self, forKey: .cursorInvertedX) ?? false
+        cursorInvertedY = try c.decodeIfPresent(Bool.self, forKey: .cursorInvertedY) ?? false
+        preciseInvertedX = try c.decodeIfPresent(Bool.self, forKey: .preciseInvertedX) ?? false
+        preciseInvertedY = try c.decodeIfPresent(Bool.self, forKey: .preciseInvertedY) ?? false
+        hidInvertedX = try c.decodeIfPresent(Bool.self, forKey: .hidInvertedX) ?? false
+        hidInvertedY = try c.decodeIfPresent(Bool.self, forKey: .hidInvertedY) ?? false
     }
 }
 
