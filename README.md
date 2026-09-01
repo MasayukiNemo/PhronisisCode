@@ -37,7 +37,7 @@ PhronisisCode/
 
 ```powershell
 git pull
-opencode  # モデルはopencode起動時のピッカーで選択（画面選択に従う）
+opencode  # モデルはopencode起動時のピッカーで選択（画面選択に従う）。未導入なら https://opencode.ai/docs から導入
 ```
 
 起動後、Kai は `knowledge/handover.md` → `knowledge/conductor_profile_lite.md` → `.opencode/rules/phronisis_code.md` → `shared/phronisis_code/orchestration_flow_code.md` の順に読む。
