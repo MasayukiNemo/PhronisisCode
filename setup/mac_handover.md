@@ -1,5 +1,7 @@
 # PhronisisCode Mac 環境引継ぎマニュアル
 
+> Windows は本ファイルを読まず `setup/win_handover.md` を読め。共用リポジトリのため両手順は対称に保つこと。
+
 このマニュアルは、Mac（BUF-STMarketingnoMacBook-Air.local）に常駐する PhronisisCore の Kai が、PhronisisCode を Mac に立ち上げるための手順書である。
 Windows（DESKTOP-QCLBNKI）で構築・検証済みの Code v1.0（a14806c + 306117a）を Mac に移植する。
 

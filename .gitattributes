@@ -1,0 +1,11 @@
+# PhronisisCode - 改行コードとエンコーディング固定
+# Windows (core.autocrlf=true) でも hooks は LF で checkout されるようにする
+* text=auto eol=lf
+hooks/* text eol=lf
+hooks/python_run.sh text eol=lf
+hooks/pre-commit text eol=lf
+hooks/pre-push text eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf

@@ -71,6 +71,9 @@ bash hooks/python_run.sh scripts/code_health_check.py --no-color
 # いずれも exit 0 であること。失敗時は pre-push で BLOCK される
 ```
 
+> Windows で `bash: command not found` の場合: Git for Windows の bash が PATH にない。`& "C:\Program Files\Git\bin\bash.exe" -c "bash hooks/python_run.sh ..."` でフルパス指定するか、Git Bash ターミナルで実行。または `git hook run pre-commit` / `git hook run pre-push` を使う。commit/push 時の自動実行は Git が内部で bash を解決するため問題ない。
+> `python: command not found` の場合: `py -3` を試す。`hooks/python_run.sh` は python3→python→py -3 の順にフォールバックする。
+
 ## 代替: フォルダコピー方式
 
 技術的には動作するが、以下の理由で非推奨。
