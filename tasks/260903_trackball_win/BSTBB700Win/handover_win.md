@@ -43,7 +43,7 @@ BSTBB700Win/
 
 - Discoveryタブで進む/戻るのXBUTTON1/2対応とチルト符号を確認。逆なら設定画面の入れ替え/反転をON
 - 精密のトグル/ホールドとスケール変更が実カーソルに効くこと、終了時に元の速度へ復元されること
-- `build_win.bat` で `dist\BSTBB700Win.exe` を生成し配布確認
+- `build_win.bat` で `dist\BSTBB700Win.exe` を生成し配布確認（2026-09-04 Win機で約10MB単一exeのビルド成功。起動確認はこれから。exe本体はgit管理外）
 - 自動起動はスタートアップ方式をREADMEに記載済みだが動作未確認
 - トレイ本格化(pystray等)とC#化は正式版で検討
 - ウイルス対策誤検知とSmartScreenの手順確認

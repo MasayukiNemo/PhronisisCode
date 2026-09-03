@@ -14,6 +14,7 @@
 | 2026-09-04 | Win仕上げ(Win環境Kai): app.py直接実行修正、HookEngine実配線(注入無視・横取り/素通し・別スレッドポンプ・縮退起動)、キーボードトリガー配線、swap/tilt反映、競合警告・反転・customVKのUI追加、README/handover看板修正 | OK |
 | 2026-09-04 | 検証(Win実機なし机上): py_compile 8件PASS、新旧17/17 PASS(既存13+新規4)、code_health_check 5/5 PASS | PASS |
 | 2026-09-04 | Hayato最終ゲート: 観点1 WARN(実機未確認)・2 PASS・3 WARN(本追記で解消見込み)・4 PASS、判定WARN | WARN |
+| 2026-09-04 | exe化: PyInstaller 6.22.2導入、build_win.batでdist/BSTBB700Win.exe約10MBのビルド成功。起動確認はこれから | OK |
 
 ## 自己検証（80%とは brief.md 成功基準の必須項目に対するテスト/手動確認の通過率）
 

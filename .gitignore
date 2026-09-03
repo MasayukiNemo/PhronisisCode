@@ -10,3 +10,6 @@ tmp/
 .sheet_id.json
 __pycache__/
 *.pyc
+dist/
+build/
+*.spec
