@@ -8,8 +8,11 @@ Windows 11 / Python 3.11+ / 標準ライブラリ+ctypesのみ。外部pip不要
 - 修飾込みをSendInputでグローバル送信
 - 精密モード: トグルかホールド択一。トリガーはF13等かマウス（進む/中央/チルト）から1つ。初期はチルト左・トグル・25%。中央と進むはホールド可、チルトはトグルのみ
 - スケール10-100%。SystemParametersInfoのマウス速度を一時変更しOFFで復元
-- タスクトレイ常駐相当 + tkinter設定 + 精密ON表示 + %APPDATA%/BSTBB700/settings.json保存
+- タスクトレイ簡易常駐 + tkinter設定 + 精密ON表示 + %APPDATA%/BSTBB700/settings.json保存
+  - トレイはMVP簡易版でtkinterメインウィンドウ常駐。正式版でpystray等に拡張予定
 - DiscoveryログでXBUTTON/HWHEEL/中央の実機確認
+- 低レベルフックはWH_MOUSE_LL/WH_KEYBOARD_LL実配線。SendInput由来の注入イベントは無視し再帰を防止。割り当て時は横取り(嚥下)、未割り当ては素通し
+- キーボードトリガー(F13/F14/F15/CapsLock/custom)は横取り消費。精密と排他中のマウスボタン割り当ては設定画面に警告表示
 
 ## 実行（Win）
 

@@ -8,3 +8,5 @@ desktop.ini
 tmp/
 .sheet_id
 .sheet_id.json
+__pycache__/
+*.pyc

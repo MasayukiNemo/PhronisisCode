@@ -96,6 +96,7 @@ class AppSettings:
     precise_trigger: str = PreciseTrigger.MOUSE_TILT_LEFT.value
     precise_mode: str = PreciseMode.TOGGLE.value
     precise_scale: float = 0.25
+    precise_custom_vk: int = 124
     discovery_enabled: bool = False
     tilt_inverted: bool = False
     swap_back_forward: bool = False
@@ -107,6 +108,7 @@ class AppSettings:
             "preciseTrigger": self.precise_trigger,
             "preciseMode": self.precise_mode,
             "preciseScale": self.precise_scale,
+            "preciseCustomVk": self.precise_custom_vk,
             "discoveryEnabled": self.discovery_enabled,
             "tiltInverted": self.tilt_inverted,
             "swapBackForward": self.swap_back_forward,
@@ -131,6 +133,10 @@ class AppSettings:
         except Exception:
             s.precise_scale = 0.25
         s.precise_scale = min(max(s.precise_scale, 0.10), 1.0)
+        try:
+            s.precise_custom_vk = int(d.get("preciseCustomVk", 124))
+        except Exception:
+            s.precise_custom_vk = 124
         s.discovery_enabled = bool(d.get("discoveryEnabled", False))
         s.tilt_inverted = bool(d.get("tiltInverted", False))
         s.swap_back_forward = bool(d.get("swapBackForward", False))

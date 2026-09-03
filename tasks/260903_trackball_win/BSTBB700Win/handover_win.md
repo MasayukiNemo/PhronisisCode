@@ -1,10 +1,10 @@
 # 引き継ぎ書 — BSTBB700Win（Win11環境へ）
 
-## 現状
+## 現状（Win環境で仕上げ済み）
 
-- Mac側で実装と検証まで完了。py_compile 7件PASS、ロジック単体テスト13/13 PASS、code_health_check 5/5 PASS
-- Win実機でのフック確認は未実施のため、Win環境でDiscoveryから着手すること
-- Hayato中間はWARN（受入条件付き着手可）、Metis指摘3件は修正済み。最終ゲートはこれから回す
+- Win環境で起動ブロッカーと未配線を修正。py_compile 8件PASS、ロジック単体テスト17/17 PASS、code_health_check 5/5 PASS
+- 修正点: app.py直接実行(`python app.py`)可、WH_MOUSE_LL/WH_KEYBOARD_LL実配線(注入無視で再帰防止、横取り/素通し)、キーボードトリガー配線(横取り消費)、swap/tilt反映、競合警告と反転トグルとcustom VKのUI追加
+- トレイはMVP簡易版(tkinter常駐)のまま。READMEの看板を簡易版に修正済み
 
 ## 構成
 
@@ -39,9 +39,11 @@ BSTBB700Win/
 - クラッシュ時の低速残留に注意。atexit/signalと起動時復元で二重化済みだが、killや電源断では残るため起動時に強制復元すること（Hayato受入条件）
 - SPIはグローバル減速のため、UIに明記し起動中のみ適用すること
 
-## 残課題
+## 残課題（Win実機で確認すること）
 
-- HookEngine.startのSetWindowsHookEx実配線は骨格のみ。Win環境で実機フックを実装しDiscoveryと接続する
-- トレイ常駐はtkinter常駐の簡易版。正式版ではpystrayかC#化を検討する（Hayato条件）
+- Discoveryタブで進む/戻るのXBUTTON1/2対応とチルト符号を確認。逆なら設定画面の入れ替え/反転をON
+- 精密のトグル/ホールドとスケール変更が実カーソルに効くこと、終了時に元の速度へ復元されること
+- `build_win.bat` で `dist\BSTBB700Win.exe` を生成し配布確認
 - 自動起動はスタートアップ方式をREADMEに記載済みだが動作未確認
+- トレイ本格化(pystray等)とC#化は正式版で検討
 - ウイルス対策誤検知とSmartScreenの手順確認
