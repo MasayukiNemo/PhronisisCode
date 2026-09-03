@@ -34,12 +34,12 @@ struct SettingsView: View {
                 PermissionView()
 
             VStack(spacing: 10) {
-                HybridKeyRow(title: "戻る", current: store.mapping(for: .back)) { c in store.setMapping(c, for: .back) }
-                HybridKeyRow(title: "進む", current: store.mapping(for: .forward)) { c in store.setMapping(c, for: .forward) }
-                HybridKeyRow(title: "中央押し", current: store.mapping(for: .center)) { c in store.setMapping(c, for: .center) }
+                HybridKeyRow(title: "戻る", current: store.mapping(for: .back), buttonID: .back) { c in store.setMapping(c, for: .back) }
+                HybridKeyRow(title: "進む", current: store.mapping(for: .forward), buttonID: .forward) { c in store.setMapping(c, for: .forward) }
+                HybridKeyRow(title: "中央押し", current: store.mapping(for: .center), buttonID: .center) { c in store.setMapping(c, for: .center) }
                 Divider()
-                HybridKeyRow(title: "チルト左", current: store.mapping(for: .tiltLeft)) { c in store.setMapping(c, for: .tiltLeft) }
-                HybridKeyRow(title: "チルト右", current: store.mapping(for: .tiltRight)) { c in store.setMapping(c, for: .tiltRight) }
+                HybridKeyRow(title: "チルト左", current: store.mapping(for: .tiltLeft), buttonID: .tiltLeft) { c in store.setMapping(c, for: .tiltLeft) }
+                HybridKeyRow(title: "チルト右", current: store.mapping(for: .tiltRight), buttonID: .tiltRight) { c in store.setMapping(c, for: .tiltRight) }
                 Toggle("チルト方向を反転（右倒しが左として認識される場合）", isOn: Binding(get: { store.settings.tiltInverted }, set: { v in store.settings.tiltInverted = v; store.save() }))
                     .font(.caption2).toggleStyle(.switch)
                 Text("Discoveryログで h の符号を確認。右倒しで h が負に出る場合は反転をONに。").font(.caption2).foregroundStyle(.secondary)
@@ -66,8 +66,8 @@ struct SettingsView: View {
                     Text("トリガー").frame(width: 80, alignment: .leading)
                     Picker("", selection: Binding(get: { store.settings.preciseTrigger }, set: { v in
                         store.settings.preciseTrigger = v; store.save()
-                        let isTilt = v == .mouseTiltRight || v == .mouseTiltLeft || v == .mouseTiltEither
-                        if isTilt, store.settings.preciseMode == .hold {
+                        let isHoldDisabled = v == .mouseTiltRight || v == .mouseTiltLeft || v == .mouseTiltEither || v == .mouseForward
+                        if isHoldDisabled, store.settings.preciseMode == .hold {
                             store.settings.preciseMode = .toggle
                             store.save()
                         }
@@ -91,11 +91,11 @@ struct SettingsView: View {
                     })) {
                         Text("トグル（押すたびON/OFF）").tag(PreciseMode.toggle)
                         Text("ホールド（押している間のみ）").tag(PreciseMode.hold)
-                            .disabled(store.settings.preciseTrigger == .mouseTiltRight || store.settings.preciseTrigger == .mouseTiltLeft || store.settings.preciseTrigger == .mouseTiltEither)
+                            .disabled(store.settings.preciseTrigger == .mouseTiltRight || store.settings.preciseTrigger == .mouseTiltLeft || store.settings.preciseTrigger == .mouseTiltEither || store.settings.preciseTrigger == .mouseForward)
                 }.labelsHidden().pickerStyle(.radioGroup)
             }
-            if store.settings.preciseTrigger == .mouseTiltRight || store.settings.preciseTrigger == .mouseTiltLeft || store.settings.preciseTrigger == .mouseTiltEither {
-                Label("チルトはホールド非対応（離上イベントがないため）。トグルのみ推奨。", systemImage: "info.circle").font(.caption2).foregroundStyle(.orange)
+            if store.settings.preciseTrigger == .mouseTiltRight || store.settings.preciseTrigger == .mouseTiltLeft || store.settings.preciseTrigger == .mouseTiltEither || store.settings.preciseTrigger == .mouseForward {
+                Label("進む/チルトはホールド非対応（キーボードエミュレーション/離上なしのため）。トグルのみ推奨。中央ボタンとキーボードはホールド可。", systemImage: "info.circle").font(.caption2).foregroundStyle(.orange)
             }
                 if store.settings.preciseTrigger == .capsLock {
                     Label("CapsLockはflagsChangedで判定します。システムのCapsLock動作と競合する場合があります。", systemImage: "info.circle").font(.caption2).foregroundStyle(.secondary)
@@ -108,17 +108,14 @@ struct SettingsView: View {
                         Text("\(Int(store.settings.preciseScale * 100))%").monospacedDigit().foregroundStyle(.secondary)
                     }
                 Slider(value: Binding(get: { store.settings.preciseScale }, set: { v in
-                    store.settings.preciseScale = min(max(v, 0.25), 1.0)
+                    store.settings.preciseScale = min(max(v, 0.10), 1.0)
                     store.save()
-                }), in: 0.25...1.0, step: 0.05)
-                HStack { Text("25%").font(.caption2).foregroundStyle(.secondary); Spacer(); Text("100%").font(.caption2).foregroundStyle(.secondary) }
-                    Toggle("精密時の移動方向が逆の場合はON（上下左右反転を補正）", isOn: Binding(get: { store.settings.preciseInverted }, set: { v in store.settings.preciseInverted = v; store.save() }))
-                        .font(.caption2).toggleStyle(.switch)
-                    HStack(spacing: 12) {
-                        Toggle("左右のみ", isOn: Binding(get: { store.settings.preciseInvertedX }, set: { v in store.settings.preciseInvertedX = v; store.save() })).font(.caption2).toggleStyle(.switch)
-                        Toggle("上下のみ", isOn: Binding(get: { store.settings.preciseInvertedY }, set: { v in store.settings.preciseInvertedY = v; store.save() })).font(.caption2).toggleStyle(.switch)
+                    if PreciseEngine.shared.isActive {
+                        SystemPointerSpeed.shared.setPrecise(false)
+                        SystemPointerSpeed.shared.setPrecise(true, scale: store.settings.preciseScale)
                     }
-                    Text("精密時だけ逆になる場合は、こちらで軸ごとに補正。一般の反転と二重にかけて逆になる場合は、一般をOFFにして精密側だけで調整。").font(.caption2).foregroundStyle(.secondary)
+                }), in: 0.10...1.0, step: 0.05)
+                HStack { Text("10%").font(.caption2).foregroundStyle(.secondary); Spacer(); Text("100%").font(.caption2).foregroundStyle(.secondary) }
                 }
 
                 HStack(spacing: 8) {
@@ -131,22 +128,9 @@ struct SettingsView: View {
                 .padding(8).background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .controlBackgroundColor)))
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(precise.isActive ? Color.green.opacity(0.6) : Color.clear, lineWidth: 1))
 
-                // カーソルが遅くなっているかを目で確認するエリア
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("カーソル速度の検証").font(.caption).bold()
-                    Text("精密ONでトラックボールを転がすと、カーソルが \(Int(store.settings.preciseScale*100))% の速度で動きます。下の数値とバーで、実際に遅くなっているかを確認できます。").font(.caption2).foregroundStyle(.secondary)
-                    PreciseDeltaTestView()
-                    CursorDistanceTestView()
-                    HStack(spacing: 8) {
-                        Button("HUDを再表示") { HUDController.shared.flash(active: precise.isActive) }
-                        Button("デバッグログON/OFF") {
-                            let en = !EventTapManager.shared.isDebugLogEnabled
-                            EventTapManager.shared.setDebugLogEnabled(en)
-                        }
-                        Button("ログを開く") { NSWorkspace.shared.open(URL(fileURLWithPath: "/tmp/bstbb700_debug.log")) }
-                    }.font(.caption2)
-                }
-                .padding(8).background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .windowBackgroundColor))).overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.2)))
+                HStack(spacing: 8) {
+                    Button("HUDを再表示") { HUDController.shared.flash(active: precise.isActive) }
+                }.font(.caption2)
 
                 Label("注意: MVPでは精密モードはグローバル減速です。トラックパッドや他マウスも減速します。将来的にBSTBB700のみに限定するフィルタを追加予定。", systemImage: "info.circle")
                     .font(.caption).foregroundStyle(.secondary)
@@ -302,20 +286,37 @@ struct CursorDistanceTestView: View {
 struct HybridKeyRow: View {
     var title: String
     var current: KeyCombo?
+    var buttonID: ButtonID? = nil
     var onChange: (KeyCombo?) -> Void
     @State private var showBuilder = false
+    @ObservedObject private var store = MappingStore.shared
     var body: some View {
+        let isPreciseConsuming = buttonID.map { store.isPreciseTriggerConsuming(button: $0) } ?? false
         VStack(alignment: .leading, spacing: 6) {
+            if isPreciseConsuming {
+                Label("精密トリガーで使用中のため割り当て不可。精密トリガーを変更するか無効化してください。", systemImage: "exclamationmark.triangle").font(.caption2).foregroundStyle(.orange)
+            }
             KeyCaptureView(title: title, current: current, onCapture: onChange)
+                .opacity(isPreciseConsuming ? 0.5 : 1)
+                .disabled(isPreciseConsuming)
             DisclosureGroup(isExpanded: $showBuilder) {
                 KeyComboBuilderView(current: current, onChange: onChange)
+                    .opacity(isPreciseConsuming ? 0.5 : 1)
+                    .disabled(isPreciseConsuming)
             } label: {
                 Text("リスト選択で組み立て（押しにくいキー・複合キー用）").font(.caption2).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .disabled(isPreciseConsuming)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if !isPreciseConsuming { showBuilder.toggle() }
             }
         }
         .padding(6)
         .background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: .windowBackgroundColor)))
-        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.gray.opacity(0.15)))
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(isPreciseConsuming ? Color.orange.opacity(0.5) : Color.gray.opacity(0.15)))
     }
 }
 

@@ -26,9 +26,11 @@ final class EventTapManager: ObservableObject {
     private var debugLogEnabled = false
     var isDebugLogEnabled: Bool { debugLogEnabled }
     private var debugLogFile: FileHandle?
+    private var preciseRemainderX: Double = 0
+    private var preciseRemainderY: Double = 0
+    private var warpRemainderX: Double { get { preciseRemainderX } set { preciseRemainderX = newValue } }
+    private var warpRemainderY: Double { get { preciseRemainderY } set { preciseRemainderY = newValue } }
     private var isWarping = false
-    private var warpRemainderX: Double = 0
-    private var warpRemainderY: Double = 0
 
     // 相関窓: キーボード由来と区別するためのタイムスタンプ（将来拡張）
     private var lastIOHIDTimestamp: UInt64 = 0
@@ -74,6 +76,10 @@ final class EventTapManager: ObservableObject {
         self.runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, t, 0)
         CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
         CGEvent.tapEnable(tap: t, enable: true)
+        // Warp直後の0.25s抑制を無効化
+        if let src = CGEventSource(stateID: .hidSystemState) {
+            src.localEventsSuppressionInterval = 0.0
+        }
         isRunning = true
         NSLog("[BSTBB700] EventTap started")
 
@@ -237,10 +243,11 @@ final class EventTapManager: ObservableObject {
         case .keyDown:
             let kc = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
             let flags = event.flags
+            let isRepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
             // BSTBB700特殊仕様: 進む/戻るが Ctrl+→/Ctrl+← として送られる。キーボードのShift付き等は誤爆しないよう厳密にCtrlのみを判定
             let isCtrlOnly = flags.contains(.maskControl) && !flags.contains(.maskShift) && !flags.contains(.maskCommand) && !flags.contains(.maskAlternate)
             if isCtrlOnly && kc == 124 {
-                // Ctrl+→ = 進む（HoldリピートはkeyDownが連続で来るため、2回目以降はMappingのemitをthrottleせず素通ししない）
+                if isRepeat { return nil }
                 if precise.handleMouseTrigger(button: .forward, isDown: true) { return nil }
                 if store.isPreciseTriggerConsuming(button: .forward) { return nil }
                 if let combo = store.mapping(for: .forward) {
@@ -329,7 +336,11 @@ final class EventTapManager: ObservableObject {
             return Unmanaged.passUnretained(event)
 
         case .scrollWheel:
-            // チルト判定: horizontal deltaがあればチルト
+            // トラックパッドの二本指スワイプは isContinuous=1 で区別しチルト誤爆を防ぐ
+            let isContinuous = event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0
+            if isContinuous {
+                return Unmanaged.passUnretained(event)
+            }
             let h = event.getDoubleValueField(.scrollWheelEventPointDeltaAxis2)
             let v = event.getDoubleValueField(.scrollWheelEventPointDeltaAxis1)
             let isHorizontalTilt = abs(h) > 0.05 && abs(v) < 0.1
@@ -367,13 +378,10 @@ final class EventTapManager: ObservableObject {
             return Unmanaged.passUnretained(event)
 
         case .mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged:
-            if isWarping {
-                isWarping = false
-                return Unmanaged.passUnretained(event)
-            }
-            var dxRaw = event.getIntegerValueField(.mouseEventDeltaX)
-            var dyRaw = event.getIntegerValueField(.mouseEventDeltaY)
-            // HID自体の符号が逆の場合の補正（精密とは独立）
+            let origDx = event.getIntegerValueField(.mouseEventDeltaX)
+            let origDy = event.getIntegerValueField(.mouseEventDeltaY)
+            var dxRaw = origDx
+            var dyRaw = origDy
             if MappingStore.shared.settings.hidInvertedX { dxRaw = -dxRaw }
             if MappingStore.shared.settings.hidInvertedY { dyRaw = -dyRaw }
             let s = MappingStore.shared.settings
@@ -386,51 +394,76 @@ final class EventTapManager: ObservableObject {
             var didScale = false
             var consumedAndWarped = false
             if precise.isActive {
-                let scale = min(max(MappingStore.shared.settings.preciseScale, 0.25), 1.0)
-                if scale < 0.99 && (dxRaw != 0 || dyRaw != 0) {
-                    // 精密時はHIDの生delta(dxRaw)基準でスケールし、一般の反転とは独立させる
-                    let rawDx = Double(dxRaw) + warpRemainderX
-                    let rawDy = Double(dyRaw) + warpRemainderY
-                    let ndx = rawDx * scale
-                    let ndy = rawDy * scale
-                    scaledDx = Int64(ndx)
-                    scaledDy = Int64(ndy)
-                    warpRemainderX = ndx - Double(scaledDx)
-                    warpRemainderY = ndy - Double(scaledDy)
-                    let cgCur = event.location
-                    let oldPos = CGPoint(x: cgCur.x - CGFloat(dxRaw), y: cgCur.y - CGFloat(dyRaw))
-                    let invX = MappingStore.shared.settings.preciseInverted || MappingStore.shared.settings.preciseInvertedX
-                    let invY = MappingStore.shared.settings.preciseInverted || MappingStore.shared.settings.preciseInvertedY
-                    let nx = invX ? oldPos.x - CGFloat(scaledDx) : oldPos.x + CGFloat(scaledDx)
-                    let ny = invY ? oldPos.y - CGFloat(scaledDy) : oldPos.y + CGFloat(scaledDy)
-                    let nloc = CGPoint(x: nx, y: ny)
-                    isWarping = true
-                    CGWarpMouseCursorPosition(nloc)
-                    // デバッグ用にrawとscaledとnlocをログ（String(format:)のscaled位置にinvを渡すバグ修正済み・重複行解消）
-                    if debugLogEnabled, let fh = debugLogFile {
-                        let line = String(format: "warp raw=%d,%d invX=%d invY=%d old=%.1f,%.1f cur=%.1f,%.1f scaled=%d,%d nloc=%.1f,%.1f\n", dxRaw, dyRaw, invX ? 1 : 0, invY ? 1 : 0, oldPos.x, oldPos.y, cgCur.x, cgCur.y, scaledDx, scaledDy, nloc.x, nloc.y)
-                        if let data = line.data(using: .utf8) { try? fh.write(contentsOf: data) }
+                if SystemPointerSpeed.shared.isPreciseApplied {
+                    let now2 = CFAbsoluteTimeGetCurrent()
+                    if now2 - lastDeltaTime > 0.08 {
+                        lastDeltaTime = now2
+                        DispatchQueue.main.async { [dx, dy] in
+                            self.lastMouseDelta = (dx, dy, dx, dy, true)
+                        }
                     }
+                    return Unmanaged.passUnretained(event)
+                }
+                let scale = min(max(s.preciseScale, 0.10), 1.0)
+                if scale < 0.99 && (dx != 0 || dy != 0) {
+                    let pInvX = s.preciseInverted || s.preciseInvertedX
+                    let pInvY = s.preciseInverted || s.preciseInvertedY
+                    let sx = Double(dx) * scale + preciseRemainderX
+                    let sy = Double(dy) * scale + preciseRemainderY
+                    let outX0 = Int64(sx.rounded(.towardZero))
+                    let outY0 = Int64(sy.rounded(.towardZero))
+                    preciseRemainderX = sx - Double(outX0)
+                    preciseRemainderY = sy - Double(outY0)
+                    if abs(preciseRemainderX) > 2.0 { preciseRemainderX = 0 }
+                    if abs(preciseRemainderY) > 2.0 { preciseRemainderY = 0 }
+                    let adx = pInvX ? -outX0 : outX0
+                    let ady = pInvY ? -outY0 : outY0
+                    let cur = event.location
+                    let nloc = CGPoint(x: cur.x - CGFloat(origDx) + CGFloat(adx), y: cur.y - CGFloat(origDy) + CGFloat(ady))
+                    CGWarpMouseCursorPosition(nloc)
+                    scaledDx = adx
+                    scaledDy = ady
                     didScale = true
                     consumedAndWarped = true
                 } else if dx == 0 && dy == 0 {
+                    // 停止時はremainder維持
                 } else {
-                    warpRemainderX = 0
-                    warpRemainderY = 0
+                    preciseRemainderX = 0
+                    preciseRemainderY = 0
+                    let pInvX = s.preciseInverted || s.preciseInvertedX
+                    let pInvY = s.preciseInverted || s.preciseInvertedY
+                    if pInvX || pInvY {
+                        let adx = pInvX ? -dx : dx
+                        let ady = pInvY ? -dy : dy
+                        let cur = event.location
+                        let nloc = CGPoint(x: cur.x - CGFloat(origDx) + CGFloat(adx), y: cur.y - CGFloat(origDy) + CGFloat(ady))
+                        event.location = nloc
+                        event.setIntegerValueField(.mouseEventDeltaX, value: adx)
+                        event.setDoubleValueField(.mouseEventDeltaX, value: Double(adx))
+                        event.setIntegerValueField(.mouseEventDeltaY, value: ady)
+                        event.setDoubleValueField(.mouseEventDeltaY, value: Double(ady))
+                        scaledDx = adx
+                        scaledDy = ady
+                        didScale = true
+                    } else {
+                        // scale==1.0で反転なしは素通し（Warp不要）
+                    }
                 }
-            } else if (s.cursorInverted || s.cursorInvertedX || s.cursorInvertedY) && (dxRaw != 0 || dyRaw != 0) {
-                let cgCur = event.location
-                let oldPos = CGPoint(x: cgCur.x - CGFloat(dxRaw), y: cgCur.y - CGFloat(dyRaw))
-                let nloc2 = CGPoint(x: oldPos.x + CGFloat(dx), y: oldPos.y + CGFloat(dy))
-                isWarping = true
-                CGWarpMouseCursorPosition(nloc2)
-                scaledDx = dx
-                scaledDy = dy
-                didScale = true
-                consumedAndWarped = true
             } else {
-                warpRemainderX = 0
-                warpRemainderY = 0
+                preciseRemainderX = 0
+                preciseRemainderY = 0
+                if (s.cursorInverted || s.cursorInvertedX || s.cursorInvertedY) && (origDx != 0 || origDy != 0) {
+                    let cur = event.location
+                    let nloc = CGPoint(x: cur.x - CGFloat(origDx) + CGFloat(dx), y: cur.y - CGFloat(origDy) + CGFloat(dy))
+                    event.location = nloc
+                    event.setIntegerValueField(.mouseEventDeltaX, value: dx)
+                    event.setDoubleValueField(.mouseEventDeltaX, value: Double(dx))
+                    event.setIntegerValueField(.mouseEventDeltaY, value: dy)
+                    event.setDoubleValueField(.mouseEventDeltaY, value: Double(dy))
+                    scaledDx = dx
+                    scaledDy = dy
+                    didScale = true
+                }
             }
             let now2 = CFAbsoluteTimeGetCurrent()
             if now2 - lastDeltaTime > 0.08 {
@@ -440,7 +473,9 @@ final class EventTapManager: ObservableObject {
                 }
             }
             if didScale, debugLogEnabled, let fh = debugLogFile {
-                let line = String(format: "%.3f precise dx=%d dy=%d -> %d %d scale=%.2f warped=%d\n", now2, dx, dy, scaledDx, scaledDy, MappingStore.shared.settings.preciseScale, consumedAndWarped ? 1 : 0)
+                let pInvX = s.preciseInverted || s.preciseInvertedX
+                let pInvY = s.preciseInverted || s.preciseInvertedY
+                let line = String(format: "%.3f orig=%d,%d base=%d,%d -> %d,%d scale=%.2f precise=%d warped=%d pInv=%d,%d rem=%.2f,%.2f cur=%.1f,%.1f\n", now2, origDx, origDy, dx, dy, scaledDx, scaledDy, s.preciseScale, precise.isActive ? 1 : 0, consumedAndWarped ? 1 : 0, pInvX ? 1 : 0, pInvY ? 1 : 0, preciseRemainderX, preciseRemainderY, event.location.x, event.location.y)
                 if let data = line.data(using: .utf8) { try? fh.write(contentsOf: data) }
             }
             if consumedAndWarped {

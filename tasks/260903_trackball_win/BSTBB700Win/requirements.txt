@@ -1,0 +1,2 @@
+# stdlib only for runtime. Build only:
+# pyinstaller>=6.0

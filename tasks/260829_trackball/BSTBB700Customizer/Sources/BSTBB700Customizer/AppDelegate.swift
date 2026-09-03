@@ -22,11 +22,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 SettingsWindowController.shared.show()
             }
         }
+        // Debug: /tmp/enable-bstbb700-debug が存在すれば自動でデバッグログON（実機検証用）
+        if FileManager.default.fileExists(atPath: "/tmp/enable-bstbb700-debug") {
+            eventTap.setDebugLogEnabled(true)
+        }
         // 精密HUD監視
         observePrecise()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        SystemPointerSpeed.shared.setPrecise(false)
         eventTap.stop()
         discovery.stop()
     }

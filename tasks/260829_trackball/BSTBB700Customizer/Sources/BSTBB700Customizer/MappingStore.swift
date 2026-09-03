@@ -16,6 +16,7 @@ enum PreciseTrigger: String, Codable, CaseIterable, Sendable {
     case f15 = "f15"
     case capsLock = "capsLock"
     case mouseForward = "mouseForward"
+    case mouseCenter = "mouseCenter"
     case mouseTiltRight = "mouseTiltRight"
     case mouseTiltLeft = "mouseTiltLeft"
     case mouseTiltEither = "mouseTiltEither"
@@ -29,6 +30,7 @@ enum PreciseTrigger: String, Codable, CaseIterable, Sendable {
         case .f15: return "F15"
         case .capsLock: return "CapsLock"
         case .mouseForward: return "進むボタン"
+        case .mouseCenter: return "中央ボタン"
         case .mouseTiltRight: return "チルト右"
         case .mouseTiltLeft: return "チルト左"
         case .mouseTiltEither: return "チルト左右どちらも"
@@ -54,10 +56,10 @@ enum PreciseMode: String, Codable, Sendable {
 
 struct AppSettings: Codable, Sendable {
     var mappings: [ButtonID: KeyCombo] = [:]
-    var preciseEnabled: Bool = false
-    var preciseTrigger: PreciseTrigger = .f13
+    var preciseEnabled: Bool = true
+    var preciseTrigger: PreciseTrigger = .mouseTiltLeft
     var preciseMode: PreciseMode = .toggle
-    var preciseScale: Double = 0.3
+    var preciseScale: Double = 0.25
     var discoveryEnabled: Bool = false
     var filterByDevice: Bool = false
     var verticalScrollPassthrough: Bool = true
@@ -84,7 +86,7 @@ struct AppSettings: Codable, Sendable {
         preciseEnabled = try c.decodeIfPresent(Bool.self, forKey: .preciseEnabled) ?? false
         preciseTrigger = try c.decodeIfPresent(PreciseTrigger.self, forKey: .preciseTrigger) ?? .f13
         preciseMode = try c.decodeIfPresent(PreciseMode.self, forKey: .preciseMode) ?? .toggle
-        preciseScale = try c.decodeIfPresent(Double.self, forKey: .preciseScale) ?? 0.3
+        preciseScale = try c.decodeIfPresent(Double.self, forKey: .preciseScale) ?? 0.25
         discoveryEnabled = try c.decodeIfPresent(Bool.self, forKey: .discoveryEnabled) ?? false
         filterByDevice = try c.decodeIfPresent(Bool.self, forKey: .filterByDevice) ?? false
         verticalScrollPassthrough = try c.decodeIfPresent(Bool.self, forKey: .verticalScrollPassthrough) ?? true
@@ -118,7 +120,7 @@ final class MappingStore: ObservableObject {
             loaded = AppSettings()
         }
         var s = loaded
-        if s.preciseScale < 0.25 { s.preciseScale = 0.25 }
+        if s.preciseScale < 0.10 { s.preciseScale = 0.10 }
         if s.preciseScale > 1.0 { s.preciseScale = 1.0 }
         self.settings = s
     }
@@ -171,6 +173,7 @@ final class MappingStore: ObservableObject {
         guard settings.preciseEnabled else { return false }
         switch (settings.preciseTrigger, button) {
         case (.mouseForward, .forward): return true
+        case (.mouseCenter, .center): return true
         case (.mouseTiltRight, .tiltRight): return true
         case (.mouseTiltLeft, .tiltLeft): return true
         case (.mouseTiltEither, .tiltLeft), (.mouseTiltEither, .tiltRight): return true

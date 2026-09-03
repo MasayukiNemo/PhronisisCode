@@ -5,7 +5,13 @@ import Combine
 final class PreciseEngine: ObservableObject {
     static let shared = PreciseEngine()
 
-    @Published var isActive: Bool = false
+    @Published var isActive: Bool = false {
+        didSet {
+            if oldValue != isActive {
+                SystemPointerSpeed.shared.setPrecise(isActive, scale: scale)
+            }
+        }
+    }
     @Published var isHoldPressed: Bool = false
     private let lock = NSLock()
 
@@ -13,7 +19,7 @@ final class PreciseEngine: ObservableObject {
 
     var scale: Double {
         let s = store.settings.preciseScale
-        return min(max(s, 0.25), 1.0)
+        return min(max(s, 0.10), 1.0)
     }
 
     func toggle() {
@@ -72,12 +78,13 @@ final class PreciseEngine: ObservableObject {
         guard store.settings.preciseEnabled else { return false }
         let t = store.settings.preciseTrigger
         let matches: Bool = (t == .mouseForward && button == .forward)
+            || (t == .mouseCenter && button == .center)
             || (t == .mouseTiltRight && button == .tiltRight)
             || (t == .mouseTiltLeft && button == .tiltLeft)
             || (t == .mouseTiltEither && (button == .tiltLeft || button == .tiltRight))
         guard matches else { return false }
-        // チルトはscrollWheelでupが取れないためholdは不可。強制トグル（modeに関わらず直接isActiveを反転）
-        if (button == .tiltRight || button == .tiltLeft), store.settings.preciseMode == .hold {
+        // チルトと進むはhold不可。チルトはscrollWheelでupが取れず、進むはキーボードエミュレーションで押しっぱなしが取れないため強制トグル
+        if (button == .tiltRight || button == .tiltLeft || button == .forward), store.settings.preciseMode == .hold {
             if isDown {
                 isActive.toggle()
                 DispatchQueue.main.async { HUDController.shared.flash(active: self.isActive) }

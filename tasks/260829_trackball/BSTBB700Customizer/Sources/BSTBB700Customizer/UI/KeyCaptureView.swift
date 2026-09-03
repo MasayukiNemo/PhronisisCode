@@ -33,6 +33,8 @@ struct KeyCaptureView: View {
                 onCapture(combo)
                 isCapturing = false
             }
+            .frame(width: 1, height: 1)
+            .opacity(0)
         )
     }
 }
@@ -50,6 +52,11 @@ struct KeyCaptureNSView: NSViewRepresentable {
     func updateNSView(_ nsView: CaptureView, context: Context) {
         nsView.isCapturing = isCapturing
         nsView.onCaptured = onCaptured
+        if isCapturing {
+            DispatchQueue.main.async {
+                nsView.window?.makeFirstResponder(nsView)
+            }
+        }
     }
 
     final class CaptureView: NSView {
