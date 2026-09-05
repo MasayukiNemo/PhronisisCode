@@ -895,6 +895,14 @@ class App:
         except Exception:
             pass
 
+    def hook_error_text(self) -> str:
+        try:
+            detail = (getattr(self.hooks, "last_error", None) or "").strip()
+        except Exception:
+            detail = ""
+        base = "hooks: フック開始に失敗（要管理者/除外設定）。設定変更のみ可"
+        return base + (f" 原因: {detail}" if detail else "")
+
     def run(self) -> None:
         root = self.build_ui()
         try:
@@ -913,7 +921,7 @@ class App:
         ok = self.hooks.start()
         if not ok:
             try:
-                self.discovery.add("hooks: フック開始に失敗（要管理者/除外設定）。設定変更のみ可")
+                self.discovery.add(self.hook_error_text())
             except Exception:
                 pass
         try:

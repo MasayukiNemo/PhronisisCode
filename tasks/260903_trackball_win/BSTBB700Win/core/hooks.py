@@ -234,10 +234,12 @@ class HookEngine:
         failure: list = []
 
         def pump():
+            # hModはNULLで渡す。ctypes生成サンクはどのモジュール内にもないため、
+            # モジュールハンドルを渡すと126(ERROR_MOD_NOT_FOUND)で失敗する。
             h_mouse = user32.SetWindowsHookExW(WH_MOUSE_LL, self._mouse_proc,
-                                               kernel32.GetModuleHandleW(None), 0)
+                                               None, 0)
             h_kbd = user32.SetWindowsHookExW(WH_KEYBOARD_LL, self._kbd_proc,
-                                             kernel32.GetModuleHandleW(None), 0)
+                                             None, 0)
             if not h_mouse or not h_kbd:
                 if h_mouse:
                     user32.UnhookWindowsHookEx(h_mouse)

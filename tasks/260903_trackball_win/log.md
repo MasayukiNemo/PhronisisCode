@@ -28,6 +28,9 @@
 | 2026-09-05 | Phase2 Metis: 重大3件(状態乖離・TTL命名・discガード)+軽微安価分を修正、回帰2件追加 | OK |
 | 2026-09-05 | Phase2 Hayato最終: 1 PASS・2 WARN(実機・exe残)・3 WARN(log等残)・4 WARN。判定WARN→条件潰しへ | WARN |
 | 2026-09-05 | 不具合対応1: キャプチャでEnter/ Spaceが取消ボタン誤発火で消える問題を修正（_cancel確定後ガード+取消ボタンtakefocus除外）。回帰2件追加、49/49 PASS | OK |
+| 2026-09-05 | 前提監査(Hayato): 実機settingsはmappings空・保存系生存・フック生存の証拠なし。画面ON/OFFはSPI直叩きで説明可能。統一仮説はフック死。決定的証拠は実機でmappings1行+発火 | OK |
+| 2026-09-05 | 実機証言: フック開始失敗・発火なし・キャプチャ無反応でフック死確定 | OK |
+| 2026-09-05 | 真因特定: SetWindowsHookExのhModが誤り。モジュールハンドル渡しは126で失敗、NULLで成功。ctypesサンクはモジュール外のため。hooks.py修正+diag修正+実機live起動確認。49/49 PASS | OK |
 
 ## 自己検証（80%とは brief.md 成功基準の必須項目に対するテスト/手動確認の通過率）
 
