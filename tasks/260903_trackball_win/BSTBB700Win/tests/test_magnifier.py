@@ -72,7 +72,23 @@ def test_setters_clamp():
     assert a.store.settings.magnifier_zoom == 3
     a._set_magnifier_size(1000)
     assert a.store.settings.magnifier_size == 480
-    a._set_magnifier_size(100)
-    assert a.store.settings.magnifier_size == 200
+    a._set_magnifier_size(50)
+    assert a.store.settings.magnifier_size == 120
     assert MAG_INTERVAL_MS == 100
-    assert DEFAULT_SIZE == 320 and DEFAULT_ZOOM == 2
+    assert DEFAULT_SIZE == 240 and DEFAULT_ZOOM == 2
+
+
+def test_layout_virtual_origin():
+    lay = compute_layout(-1900, 500, 240, 2, 3840, 1080, org_x=-1920, org_y=0)
+    assert lay["wx"] >= -1920
+    assert lay["wx"] + lay["size"] <= 1920
+    assert lay["sx"] >= -1920
+    assert lay["sx"] + lay["src"] <= 1920
+
+
+def test_virtual_screen_returns_tuple():
+    from core.magnifier import virtual_screen
+
+    vs = virtual_screen()
+    assert len(vs) == 4
+    assert vs[2] >= 0 and vs[3] >= 0

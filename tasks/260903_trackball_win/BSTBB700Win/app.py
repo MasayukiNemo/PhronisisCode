@@ -108,7 +108,7 @@ SCALE_PRESETS = (10, 25, 50, 100)
 
 TILT_SUPPRESS_S = 0.3
 
-APP_VERSION = "0.2.5"
+APP_VERSION = "0.2.6"
 
 
 class App:
@@ -752,7 +752,7 @@ class App:
                         lambda _e: self._set_magnifier_zoom(zoom_var.get()))
         ttk.Label(parent, text="拡大鏡の大きさ").pack(anchor="w", padx=8)
         self._mag_size_var = tk.DoubleVar(value=float(s.magnifier_size))
-        ttk.Scale(parent, from_=200, to=480, variable=self._mag_size_var, orient="horizontal",
+        ttk.Scale(parent, from_=120, to=480, variable=self._mag_size_var, orient="horizontal",
                   command=lambda *_: self._set_magnifier_size(float(self._mag_size_var.get()))).pack(fill="x", padx=8)
         ttk.Label(parent, text="注意: MVPはグローバル減速。全マウスとタッチパッドが減速します。").pack(anchor="w", padx=8, pady=4)
 
@@ -783,7 +783,7 @@ class App:
             size = int(round(float(v)))
         except Exception:
             return
-        self.store.settings.magnifier_size = min(max(size, 200), 480)
+        self.store.settings.magnifier_size = min(max(size, 120), 480)
         self.store.save()
 
     def _set_trigger(self, v: str) -> None:
@@ -1165,6 +1165,18 @@ class App:
         return base + (f" 原因: {detail}" if detail else "")
 
     def run(self) -> None:
+        try:
+            try:
+                from .core.winapi import enable_dpi_awareness
+            except ImportError:
+                from core.winapi import enable_dpi_awareness
+            mode = enable_dpi_awareness()
+        except Exception:
+            mode = "error"
+        try:
+            self.discovery.add(f"dpi-awareness: {mode}")
+        except Exception:
+            pass
         root = self.build_ui()
         try:
             root.after(100, self._drain_ui_queue)
