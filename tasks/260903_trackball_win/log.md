@@ -32,6 +32,7 @@
 | 2026-09-05 | 実機証言: フック開始失敗・発火なし・キャプチャ無反応でフック死確定 | OK |
 | 2026-09-05 | 真因特定: SetWindowsHookExのhModが誤り。モジュールハンドル渡しは126で失敗、NULLで成功。ctypesサンクはモジュール外のため。hooks.py修正+diag修正+実機live起動確認。49/49 PASS | OK |
 | 2026-09-05 | 全入力死: hMod修正exeで起動直後に全入力stall。核はTclスレッド違反（ポンプスレッドからStringVar.set/after/tray直叩き）。UIキュー+drain一本化に分離、kill即停止+同期遅延。52/52 PASS、Hayato WARN（実機蘇生が条件） | WARN |
+| 2026-09-05 | 残留低速対応: 前回ONのまま死ぬと速度低下が残り起動後も直らない欠陥を修正。precise_was_active+normal_speed永続化、起動時復元、一般タブに速度表示と戻すボタン、版表示0.2.2。57/57 PASS安定 | OK |
 
 ## 自己検証（80%とは brief.md 成功基準の必須項目に対するテスト/手動確認の通過率）
 

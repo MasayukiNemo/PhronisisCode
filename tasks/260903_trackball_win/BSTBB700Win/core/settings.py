@@ -101,6 +101,8 @@ class AppSettings:
     tilt_inverted: bool = False
     swap_back_forward: bool = False
     debug_log_enabled: bool = False
+    precise_was_active: bool = False
+    normal_speed: int = 10
 
     def to_json_dict(self) -> dict:
         return {
@@ -114,6 +116,8 @@ class AppSettings:
             "tiltInverted": self.tilt_inverted,
             "swapBackForward": self.swap_back_forward,
             "debugLogEnabled": self.debug_log_enabled,
+            "preciseWasActive": self.precise_was_active,
+            "normalSpeed": self.normal_speed,
         }
 
     @staticmethod
@@ -143,6 +147,12 @@ class AppSettings:
         s.tilt_inverted = bool(d.get("tiltInverted", False))
         s.swap_back_forward = bool(d.get("swapBackForward", False))
         s.debug_log_enabled = bool(d.get("debugLogEnabled", False))
+        s.precise_was_active = bool(d.get("preciseWasActive", False))
+        try:
+            s.normal_speed = int(d.get("normalSpeed", 10))
+        except Exception:
+            s.normal_speed = 10
+        s.normal_speed = min(max(s.normal_speed, 1), 20)
         return s
 
 

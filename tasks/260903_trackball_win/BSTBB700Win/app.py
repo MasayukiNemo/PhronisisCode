@@ -101,6 +101,8 @@ TRIGGER_CHOICES = [
 
 TILT_SUPPRESS_S = 0.3
 
+APP_VERSION = "0.2.2"
+
 
 class App:
     def __init__(self, store: SettingsStore | None = None):
@@ -116,6 +118,7 @@ class App:
             from .core.precise import SpeedBackend as _SB
         self.precise = PreciseController(backend=backend or _SB())
         self.discovery = DiscoveryLog()
+        self._recover_leftover_speed()
         self.hooks = HookEngine(
             router=self.route_mouse,
             key_router=self.route_key,
@@ -141,6 +144,44 @@ class App:
     def _reset_disable_flag_cache(self) -> None:
         self._disable_flag_cache_init = False
         self._disable_flag_cached = False
+
+    def _recover_leftover_speed(self) -> str:
+        """前回異常終了の残留低速を起動時に復元する。戻り値は表示用メモ。
+        flag True = 前回ONのまま死んだ可能性 → normal_speedへ復元。
+        その後、今の速度を今期のnormalとして記録する。"""
+        s = self.store.settings
+        note = ""
+        try:
+            if bool(s.precise_was_active):
+                target = min(max(int(s.normal_speed), 1), 20)
+                try:
+                    self.precise.backend.set(target)
+                    note = f"残留低速を復元した（速度{target}）"
+                except Exception:
+                    note = "残留低速の復元に失敗した"
+                try:
+                    self.discovery.add(f"startup: {note}")
+                except Exception:
+                    pass
+            try:
+                current = int(self.precise.backend.get())
+            except Exception:
+                current = 10
+            s.normal_speed = min(max(current, 1), 20)
+            s.precise_was_active = False
+            self.store.save()
+        except Exception:
+            pass
+        return note
+
+    def _persist_precise_session(self) -> None:
+        try:
+            active = bool(self.precise.is_active)
+            if self.store.settings.precise_was_active != active:
+                self.store.settings.precise_was_active = active
+                self.store.save()
+        except Exception:
+            pass
 
     def _kill_flag_active(self) -> bool:
         """%TEMP%/bstbb700_disable presence with 2s TTL cache."""
@@ -241,6 +282,7 @@ class App:
             self.discovery.add("kill-switch: Esc連打でフック停止（設定画面から再開可）")
         except Exception:
             pass
+        self._persist_precise_session()
         self._post_ui("kill")
 
     # Router used by hooks and testable directly
@@ -264,6 +306,7 @@ class App:
             self.precise.handle_mouse_trigger(button, is_down, s.precise_trigger,
                                               s.precise_mode, s.precise_scale, s.precise_enabled)
             if bool(self.precise.is_active) != before:
+                self._persist_precise_session()
                 self._notify_precise_changed()
             return "precise"
         if action == "emit":
@@ -318,6 +361,7 @@ class App:
                 self.precise.hold_ended(s.precise_mode)
             consumed = True
         if bool(self.precise.is_active) != before:
+            self._persist_precise_session()
             self._notify_precise_changed()
         return consumed
 
@@ -373,7 +417,7 @@ class App:
 
     def build_ui(self) -> tk.Tk:
         root = tk.Tk()
-        root.title("BSTBB700 Customizer (Win)")
+        root.title(f"BSTBB700 Customizer (Win) {APP_VERSION}")
         root.geometry("700x600")
         self.root = root
         try:
@@ -716,6 +760,7 @@ class App:
         s = self.store.settings
         before = bool(self.precise.is_active)
         self.precise.toggle(s.precise_scale, s.precise_enabled, s.precise_mode)
+        self._persist_precise_session()
         self._sync_status_var()
         if bool(self.precise.is_active) != before:
             self._flash_hud_direct()
@@ -806,7 +851,11 @@ class App:
             pass
 
     def _build_general_tab(self, parent) -> None:
-        ttk.Label(parent, text="BSTBB700Win 0.2.0 (Phase1)").pack(anchor="w", padx=8, pady=4)
+        ttk.Label(parent, text=f"BSTBB700Win {APP_VERSION}").pack(anchor="w", padx=8, pady=4)
+        self._speed_var = tk.StringVar(value=self._speed_text())
+        ttk.Label(parent, textvariable=self._speed_var, wraplength=640).pack(anchor="w", padx=8)
+        ttk.Button(parent, text="速度表示を更新・通常に戻す",
+                   command=self._restore_normal_speed).pack(anchor="w", padx=8, pady=2)
         try:
             auto_on = bool(autostart_is_enabled())
         except Exception:
@@ -845,6 +894,42 @@ class App:
                    command=self._reset_settings).pack(anchor="w", padx=8, pady=2)
         self._general_msg = tk.StringVar(value="")
         ttk.Label(parent, textvariable=self._general_msg, wraplength=640).pack(anchor="w", padx=8)
+
+    def _speed_text(self) -> str:
+        try:
+            cur = int(self.precise.backend.get())
+        except Exception:
+            cur = -1
+        try:
+            normal = int(self.store.settings.normal_speed)
+        except Exception:
+            normal = 10
+        state = "精密ON" if bool(self.precise.is_active) else "精密OFF"
+        return f"マウス速度: 現在 {cur} / 通常 {normal}（{state}）"
+
+    def _restore_normal_speed(self) -> None:
+        try:
+            target = min(max(int(self.store.settings.normal_speed), 1), 20)
+        except Exception:
+            target = 10
+        try:
+            self.precise.backend.set(target)
+            self.precise.is_active = False
+            self.precise.is_hold_pressed = False
+            self._persist_precise_session()
+            msg = f"速度を通常（{target}）に戻した"
+        except Exception as e:
+            msg = f"速度の復元に失敗: {e}"
+        try:
+            self._general_msg.set(msg)
+        except Exception:
+            pass
+        try:
+            self._speed_var.set(self._speed_text())
+        except Exception:
+            pass
+        self._sync_status_var()
+        self._sync_tray_precise()
 
     def _toggle_autostart(self) -> None:
         try:

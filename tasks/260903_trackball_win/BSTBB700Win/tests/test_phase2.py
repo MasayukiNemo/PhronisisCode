@@ -247,6 +247,9 @@ def test_tilt_suppressed_second_pulse():
     assert a.store.settings.precise_trigger == "mouseTiltLeft"
     first = a.route_mouse("tiltLeft", True)
     assert first == "precise"
+    assert a._last_tilt_monotonic is not None
+    # 壁時計依存を排除し抑止窓内を明示する（負荷時のフレーキー防止）
+    a._last_tilt_monotonic = time.monotonic()
     assert a.route_mouse("tiltLeft", True) == "passthrough"
     a._last_tilt_monotonic = time.monotonic() - 10.0
     assert a.route_mouse("tiltLeft", True) == "precise"
@@ -301,6 +304,84 @@ def test_restart_hooks_headless_safe():
 def test_hook_status_text():
     a = _fresh_app()
     assert a._hook_status_text() in ("フック動作中", "フック停止中")
+
+
+def test_speed_session_roundtrip():
+    from core.settings import SettingsStore as _SS
+
+    a = _fresh_app()
+    a.store.settings.precise_was_active = True
+    a.store.settings.normal_speed = 11
+    a.store.save()
+    b = _SS(path=a.store.path)
+    assert b.settings.precise_was_active is True
+    assert b.settings.normal_speed == 11
+
+
+def test_recover_leftover_restores():
+    from core.precise import SpeedBackend as _SB
+
+    a = _fresh_app()
+    backend = _SB()
+    backend._speed = 2
+    a.precise.backend = backend
+    a.store.settings.precise_was_active = True
+    a.store.settings.normal_speed = 11
+    note = a._recover_leftover_speed()
+    assert backend.get() == 11
+    assert a.store.settings.precise_was_active is False
+    assert a.store.settings.normal_speed == 11
+    assert "復元" in note
+
+
+def test_recover_clean_baseline():
+    from core.precise import SpeedBackend as _SB
+
+    a = _fresh_app()
+    backend = _SB()
+    backend._speed = 9
+    a.precise.backend = backend
+    a.store.settings.precise_was_active = False
+    note = a._recover_leftover_speed()
+    assert backend.get() == 9  # 触らない
+    assert a.store.settings.normal_speed == 9
+    assert note == ""
+
+
+def test_persist_on_toggle():
+    a = _fresh_app()
+    a.store.settings.precise_trigger = "f13"
+    a.store.settings.precise_mode = "toggle"
+    assert a.store.settings.precise_was_active is False
+    assert a.route_key(124, True) is True
+    assert a.store.settings.precise_was_active is True
+    assert a.route_key(124, True) is True
+    assert a.store.settings.precise_was_active is False
+
+
+def test_restore_normal_speed_headless():
+    from core.precise import SpeedBackend as _SB
+
+    a = _fresh_app()
+    backend = _SB()
+    backend._speed = 2
+    a.precise.backend = backend
+    a.precise.is_active = True
+    a.store.settings.normal_speed = 10
+
+    class _Var:
+        def __init__(self):
+            self.v = ""
+
+        def set(self, v):
+            self.v = v
+
+    a._general_msg = _Var()
+    a._speed_var = _Var()
+    a._restore_normal_speed()
+    assert backend.get() == 10
+    assert a.precise.is_active is False
+    assert "戻した" in a._general_msg.v
 
 
 def test_hook_thread_posts_no_tk_touch():
