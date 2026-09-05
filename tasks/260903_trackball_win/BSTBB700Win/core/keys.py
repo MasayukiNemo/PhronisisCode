@@ -49,22 +49,34 @@ def emit(combo: KeyCombo) -> bool:
                         ("dwFlags", wintypes.DWORD), ("time", wintypes.DWORD),
                         ("dwExtraInfo", ctypes.c_void_p)]
 
+        class MOUSEINPUT(ctypes.Structure):
+            _fields_ = [("dx", wintypes.LONG), ("dy", wintypes.LONG),
+                        ("mouseData", wintypes.DWORD), ("dwFlags", wintypes.DWORD),
+                        ("time", wintypes.DWORD), ("dwExtraInfo", ctypes.c_void_p)]
+
+        class _INPUT_UNION(ctypes.Union):
+            _fields_ = [("mi", MOUSEINPUT), ("ki", KEYBDINPUT)]
+
         class INPUT(ctypes.Structure):
-            _fields_ = [("type", wintypes.DWORD),
-                        ("ki", KEYBDINPUT)]
+            _fields_ = [("type", wintypes.DWORD), ("u", _INPUT_UNION)]
+
+        assert ctypes.sizeof(INPUT) == 40, ctypes.sizeof(INPUT)
 
         strokes = plan_strokes(combo)
         n = len(strokes)
         arr = (INPUT * n)()
-        user32 = ctypes.windll.user32
+        try:
+            from .winapi import user32
+        except ImportError:
+            from core.winapi import user32
         for i, s in enumerate(strokes):
             scan = user32.MapVirtualKeyW(int(s.vk), MAPVK_VK_TO_VSC)
             flags = 0 if s.down else KEYEVENTF_KEYUP
             if scan:
                 flags |= KEYEVENTF_SCANCODE
             arr[i].type = INPUT_KEYBOARD
-            arr[i].ki = KEYBDINPUT(wintypes.WORD(int(s.vk)), wintypes.WORD(scan),
-                                   wintypes.DWORD(flags), wintypes.DWORD(0), None)
+            arr[i].u.ki = KEYBDINPUT(wintypes.WORD(int(s.vk)), wintypes.WORD(scan),
+                                     wintypes.DWORD(flags), wintypes.DWORD(0), None)
         sent = user32.SendInput(n, arr, ctypes.sizeof(INPUT))
         return int(sent) == n
     except Exception:

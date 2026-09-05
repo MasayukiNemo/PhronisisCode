@@ -366,10 +366,12 @@ class App:
         return consumed
 
     def _live_modifier_bits(self) -> int:
-        """Read Ctrl/Shift/Alt/Win via GetKeyState. Delayed ctypes, Mac-safe (0)."""
+        """Read Ctrl/Shift/Alt/Win via GetKeyState. Delayed call, Mac-safe (0)."""
         try:
-            import ctypes
-            user32 = ctypes.windll.user32
+            try:
+                from .core.winapi import user32
+            except ImportError:
+                from core.winapi import user32
 
             def _down(vk: int) -> bool:
                 try:

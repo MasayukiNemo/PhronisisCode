@@ -68,3 +68,16 @@
 - ユカイじゃない検出器: kill-switchの即時stopは入力復旧のためフックスレッドで即実行し、UI同期だけdrainに回す
 
 確信度: 原因90%(症状・コード・Tcl契約の三点一致)。残り10%は実機確認で潰す。
+
+## 起動即死の再特定（2026-09-05・Win機Kai）
+
+キュー分離でも直らなかった。Tcl説は棄却する。残るはホットパスである。
+
+新核候補: ctypesのargtypes未設定による64bit切り詰め。全Win32呼び出しが型無しで、Python intはc_int扱いになる。mouse_proc/kbd_procのCallNextHookEx(None, nCode, wParam, lParam)は毎入力イベントで64bitのlParamを32bitに切り詰めて連鎖に渡す。Set/UnhookのHHOOKも同様に切り詰められ、Unhook失敗でゾンビフックが残る可能性もある。trayのCreateWindowEx戻りhwnd・LoadIcon戻りも切り詰め。フック成立前（Phase1 exe）は発火せず、hMod修正で初めて全入力がこの回路を通った。起動直後の全入力死と一致する。
+
+ただし機構の完全導出はできていない。実証で潰す:
+- B: proc直呼び試験（実構造体バッファでmouse_proc/kbd_procを同期呼出し、例外と戻り値を確認。システム無影響）
+- A: 実SendInputをliveフックに通す試験（F24+ゼロ移動、router到達と生存を確認。異常時はtaskkillで復旧）
+- 型付け一元化は結果によらず正しいので先にやる（core/winapi.pyに集約、二重の温床を断つ）
+
+確信度: 候補70%。B/Aの結果で確定させる。

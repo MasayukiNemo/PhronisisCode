@@ -142,21 +142,20 @@ class HookEngine:
         if not is_windows():
             return False
         try:
-            import ctypes
             import threading
-            from ctypes import wintypes
         except Exception as e:
-            self.last_error = f"ctypes unavailable: {e}"
+            self.last_error = f"threading unavailable: {e}"
             return False
         try:
-            return self._start_windows(ctypes, threading, wintypes)
+            return self._start_windows(threading)
         except Exception as e:
             self.last_error = str(e)
             return False
 
-    def _start_windows(self, ctypes, threading, wintypes) -> bool:
-        user32 = ctypes.windll.user32
-        kernel32 = ctypes.windll.kernel32
+    def _start_windows(self, threading) -> bool:
+        import ctypes
+        from ctypes import wintypes
+        from .winapi import HOOKPROC, kernel32, user32
 
         class MSLLHOOKSTRUCT(ctypes.Structure):
             _fields_ = [("pt", wintypes.POINT), ("mouseData", wintypes.DWORD),
@@ -168,9 +167,6 @@ class HookEngine:
                         ("flags", wintypes.DWORD), ("time", wintypes.DWORD),
                         ("dwExtraInfo", ctypes.c_void_p)]
 
-        HOOKPROC = ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_int,
-                                      wintypes.WPARAM, wintypes.LPARAM)
-
         engine = self
 
         def mouse_proc(nCode, wParam, lParam):
@@ -179,6 +175,8 @@ class HookEngine:
                     msg = int(wParam)
                     info = ctypes.cast(lParam, ctypes.POINTER(MSLLHOOKSTRUCT)).contents
                     if is_injected_mouse(info.flags):
+                        if int(msg) == WM_MOUSEHWHEEL:
+                            engine._log("mouse HWHEEL injected-skip")
                         return user32.CallNextHookEx(None, nCode, wParam, lParam)
                     if int(msg) == WM_MOUSEHWHEEL:
                         try:
@@ -211,6 +209,7 @@ class HookEngine:
                     msg = int(wParam)
                     info = ctypes.cast(lParam, ctypes.POINTER(KBDLLHOOKSTRUCT)).contents
                     if is_injected_key(info.flags):
+                        engine._log(f"key vk={int(info.vkCode)} injected-skip")
                         return user32.CallNextHookEx(None, nCode, wParam, lParam)
                     vk = int(info.vkCode)
                     is_down = msg in (WM_KEYDOWN, WM_SYSKEYDOWN)
@@ -276,8 +275,7 @@ class HookEngine:
             self.running = False
             return
         try:
-            import ctypes
-            user32 = ctypes.windll.user32
+            from .winapi import user32
             if self._mouse_hook:
                 try:
                     user32.UnhookWindowsHookEx(self._mouse_hook)

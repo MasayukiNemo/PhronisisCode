@@ -104,8 +104,8 @@ class TrayController:
         hwnd = self._hwnd
         if hwnd:
             try:
-                import ctypes
-                ctypes.windll.user32.PostMessageW(int(hwnd), WM_DESTROY, 0, 0)
+                from .winapi import user32
+                user32.PostMessageW(int(hwnd), WM_DESTROY, 0, 0)
             except Exception:
                 pass
         th = self._thread
@@ -122,16 +122,15 @@ class TrayController:
         self._on_toggle = None
         self._on_quit = None
 
-    # ---- Windows internals (delayed ctypes only) ----
+    # ---- Windows internals (typed winapi only) ----
     def _modify_icon(self) -> None:
         import ctypes
         from ctypes import wintypes
+        from .winapi import icon_resource, shell32, user32
         if not self._hwnd or self._nid is None:
             return
         try:
-            user32 = ctypes.windll.user32
-            shell32 = ctypes.windll.shell32
-            self._nid.hIcon = user32.LoadIconW(None, precise_icon_id(self._precise))
+            self._nid.hIcon = user32.LoadIconW(None, icon_resource(precise_icon_id(self._precise)))
             self._nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP
             tip = precise_tooltip(self._precise)
             self._nid.szTip = tip
@@ -142,10 +141,7 @@ class TrayController:
     def _start_windows(self) -> bool:
         import ctypes
         from ctypes import wintypes
-
-        user32 = ctypes.windll.user32
-        kernel32 = ctypes.windll.kernel32
-        shell32 = ctypes.windll.shell32
+        from .winapi import WNDPROC, icon_resource, kernel32, shell32, user32
         ctrl = self
         ready = threading.Event()
         failure: list = []
@@ -168,10 +164,6 @@ class TrayController:
                 ("guidItem", ctypes.c_byte * 16),
                 ("hBalloonIcon", wintypes.HANDLE),
             ]
-
-        WNDPROC = ctypes.WINFUNCTYPE(
-            ctypes.c_long, wintypes.HWND, wintypes.UINT,
-            wintypes.WPARAM, wintypes.LPARAM)
 
         def _call(cb):
             try:
@@ -284,7 +276,7 @@ class TrayController:
                 nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP
                 nid.uCallbackMessage = WM_TRAYICON
                 nid.hIcon = user32.LoadIconW(
-                    None, precise_icon_id(bool(ctrl._precise)))
+                    None, icon_resource(precise_icon_id(bool(ctrl._precise))))
                 nid.szTip = precise_tooltip(bool(ctrl._precise))
                 if not shell32.Shell_NotifyIconW(NIM_ADD, ctypes.byref(nid)):
                     failure.append("Shell_NotifyIcon failed")

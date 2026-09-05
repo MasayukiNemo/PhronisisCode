@@ -52,17 +52,25 @@ class WinSpeedBackend(SpeedBackend):
 
     def get(self) -> int:
         try:
+            from .winapi import user32
+        except ImportError:
+            from core.winapi import user32
+        try:
             import ctypes
             v = ctypes.c_int()
-            ctypes.windll.user32.SystemParametersInfoW(self.SPI_GETMOUSESPEED, 0, ctypes.byref(v), 0)
+            user32.SystemParametersInfoW(self.SPI_GETMOUSESPEED, 0, ctypes.byref(v), 0)
             return int(v.value) or 10
         except Exception:
             return super().get()
 
     def set(self, v: int) -> None:
         try:
+            from .winapi import user32
+        except ImportError:
+            from core.winapi import user32
+        try:
             import ctypes
-            ctypes.windll.user32.SystemParametersInfoW(
+            user32.SystemParametersInfoW(
                 self.SPI_SETMOUSESPEED, 0, ctypes.c_void_p(int(v)),
                 self.SPIF_UPDATEINIFILE | self.SPIF_SENDCHANGE,
             )
