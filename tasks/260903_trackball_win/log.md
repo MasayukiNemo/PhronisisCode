@@ -34,6 +34,7 @@
 | 2026-09-05 | 全入力死: hMod修正exeで起動直後に全入力stall。核はTclスレッド違反（ポンプスレッドからStringVar.set/after/tray直叩き）。UIキュー+drain一本化に分離、kill即停止+同期遅延。52/52 PASS、Hayato WARN（実機蘇生が条件） | WARN |
 | 2026-09-05 | 残留低速対応: 前回ONのまま死ぬと速度低下が残り起動後も直らない欠陥を修正。precise_was_active+normal_speed永続化、起動時復元、一般タブに速度表示と戻すボタン、版表示0.2.2。57/57 PASS安定 | OK |
 | 2026-09-05 | 真因再特定: Tcl説棄却。ctypes型なしで64bit切詰め（CallNextのlParam等ホットパス破損）が核。winapi.py集約で撲滅。副産物でINPUT 40バイト化（キー発火は一度も動いていなかった）。live実証でF24観測+生存。61/61 PASS、Hayato WARN（exe未納品） | WARN |
+| 2026-09-05 | UX改善: トリガー平易名（保存は内部値維持）・スケール数値+プリセット+単一窓口。63/63 PASS、Hayato PASS（丸め即時表示は対応済み）。0.2.3 | PASS |
 
 ## 自己検証（80%とは brief.md 成功基準の必須項目に対するテスト/手動確認の通過率）
 

@@ -29,6 +29,22 @@ class PreciseTrigger(str, Enum):
     MOUSE_TILT_EITHER = "mouseTiltEither"
     CUSTOM_KEY = "customKey"
 
+    @property
+    def display(self) -> str:
+        return {
+            "none": "なし",
+            "f13": "F13キー",
+            "f14": "F14キー",
+            "f15": "F15キー",
+            "capsLock": "CapsLockキー",
+            "mouseForward": "進むボタン",
+            "mouseCenter": "中央ボタン",
+            "mouseTiltRight": "チルト右",
+            "mouseTiltLeft": "チルト左",
+            "mouseTiltEither": "チルト左右どちらも",
+            "customKey": "カスタムキー",
+        }.get(self.value, self.value)
+
 
 class PreciseMode(str, Enum):
     TOGGLE = "toggle"

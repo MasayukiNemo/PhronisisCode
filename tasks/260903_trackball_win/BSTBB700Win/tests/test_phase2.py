@@ -306,6 +306,35 @@ def test_hook_status_text():
     assert a._hook_status_text() in ("フック動作中", "フック停止中")
 
 
+def test_trigger_display_roundtrip():
+    from core.settings import PreciseTrigger
+
+    import app as appmod
+
+    assert len(appmod.TRIGGER_DISPLAYS) == len(appmod.TRIGGER_CHOICES)
+    assert len(set(appmod.TRIGGER_DISPLAYS)) == len(appmod.TRIGGER_DISPLAYS)
+    for v in appmod.TRIGGER_CHOICES:
+        disp = PreciseTrigger(v).display
+        assert disp != v  # 平易名になっている
+        assert appmod.DISPLAY_TO_TRIGGER[disp] == v
+    assert all("ボタン" in d or "キー" in d or "チルト" in d or "カスタム" in d
+               for d in appmod.TRIGGER_DISPLAYS)
+
+
+def test_scale_percent_clamp_and_persist():
+    a = _fresh_app()
+    a._apply_scale_percent(250)
+    assert abs(a.store.settings.precise_scale - 1.0) < 1e-9
+    a._apply_scale_percent(5)
+    assert abs(a.store.settings.precise_scale - 0.10) < 1e-9
+    a._apply_scale_percent(25)
+    assert abs(a.store.settings.precise_scale - 0.25) < 1e-9
+    a._apply_scale_entry("50%")
+    assert abs(a.store.settings.precise_scale - 0.50) < 1e-9
+    a._apply_scale_entry("not-a-number")  # 無視して現状維持
+    assert abs(a.store.settings.precise_scale - 0.50) < 1e-9
+
+
 def test_speed_session_roundtrip():
     from core.settings import SettingsStore as _SS
 

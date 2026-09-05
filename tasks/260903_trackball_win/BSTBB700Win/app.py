@@ -99,9 +99,14 @@ TRIGGER_CHOICES = [
     "mouseTiltLeft", "mouseTiltRight", "mouseTiltEither",
 ]
 
+TRIGGER_DISPLAYS = [PreciseTrigger(v).display for v in TRIGGER_CHOICES]
+DISPLAY_TO_TRIGGER = {PreciseTrigger(v).display: v for v in TRIGGER_CHOICES}
+
+SCALE_PRESETS = (10, 25, 50, 100)
+
 TILT_SUPPRESS_S = 0.3
 
-APP_VERSION = "0.2.2"
+APP_VERSION = "0.2.3"
 
 
 class App:
@@ -683,11 +688,13 @@ class App:
         ttk.Checkbutton(parent, text="精密モードを有効化", variable=en_var,
                         command=lambda: self._set_precise_enabled(en_var.get())).pack(anchor="w", padx=8, pady=4)
         ttk.Label(parent, text="トリガー選択").pack(anchor="w", padx=8)
-        trig_var = tk.StringVar(value=s.precise_trigger if s.precise_trigger in TRIGGER_CHOICES else "f13")
-        combo = ttk.Combobox(parent, textvariable=trig_var, values=TRIGGER_CHOICES,
+        cur_trig = s.precise_trigger if s.precise_trigger in TRIGGER_CHOICES else "f13"
+        trig_var = tk.StringVar(value=PreciseTrigger(cur_trig).display)
+        combo = ttk.Combobox(parent, textvariable=trig_var, values=TRIGGER_DISPLAYS,
                              state="readonly", width=28)
         combo.pack(anchor="w", padx=8)
-        combo.bind("<<ComboboxSelected>>", lambda _e: self._set_trigger(trig_var.get()))
+        combo.bind("<<ComboboxSelected>>",
+                   lambda _e: self._set_trigger(DISPLAY_TO_TRIGGER.get(trig_var.get(), "f13")))
         ttk.Label(parent, text="customKey用VK (例 124=F13, 20=CapsLock)").pack(anchor="w", padx=8, pady=(6, 0))
         custom_var = tk.StringVar(value=str(s.precise_custom_vk))
         self._custom_vk_var = custom_var
@@ -696,10 +703,20 @@ class App:
                    command=lambda: self._set_custom_vk(custom_var.get())).pack(anchor="w", padx=8, pady=2)
         ttk.Button(parent, text="キャプチャで設定",
                    command=lambda: self._start_capture("custom")).pack(anchor="w", padx=8, pady=2)
-        ttk.Label(parent, text=f"スケール: {int(s.precise_scale*100)}% (10-100)").pack(anchor="w", padx=8)
-        scale_var = tk.DoubleVar(value=s.precise_scale * 100)
-        ttk.Scale(parent, from_=10, to=100, variable=scale_var, orient="horizontal",
-                  command=lambda *_: self._set_scale(float(scale_var.get()) / 100)).pack(fill="x", padx=8)
+        self._scale_label_var = tk.StringVar(value=self._scale_label_text())
+        ttk.Label(parent, textvariable=self._scale_label_var).pack(anchor="w", padx=8)
+        self._scale_var = tk.DoubleVar(value=s.precise_scale * 100)
+        ttk.Scale(parent, from_=10, to=100, variable=self._scale_var, orient="horizontal",
+                  command=lambda *_: self._apply_scale_percent(float(self._scale_var.get()))).pack(fill="x", padx=8)
+        srow = ttk.Frame(parent)
+        srow.pack(anchor="w", padx=8, pady=2)
+        for pct in SCALE_PRESETS:
+            ttk.Button(srow, text=f"{pct}%",
+                       command=lambda p=pct: self._apply_scale_percent(float(p))).pack(side="left", padx=2)
+        self._scale_entry_var = tk.StringVar(value=str(int(s.precise_scale * 100)))
+        ttk.Entry(srow, textvariable=self._scale_entry_var, width=6).pack(side="left", padx=2)
+        ttk.Button(srow, text="適用",
+                   command=lambda: self._apply_scale_entry(self._scale_entry_var.get())).pack(side="left", padx=2)
         mode_var = tk.StringVar(value=s.precise_mode)
         ttk.Radiobutton(parent, text="トグル", variable=mode_var, value="toggle",
                         command=lambda: self._set_mode(mode_var.get())).pack(anchor="w", padx=8)
@@ -744,6 +761,47 @@ class App:
         self.store.settings.precise_custom_vk = vk
         self.store.settings.precise_trigger = PreciseTrigger.CUSTOM_KEY.value
         self.store.save()
+
+    def _scale_label_text(self) -> str:
+        try:
+            pct = int(round(float(self.store.settings.precise_scale) * 100))
+        except Exception:
+            pct = 25
+        return f"スケール: {pct}% (10-100)"
+
+    def _sync_scale_widgets(self) -> None:
+        try:
+            pct = min(max(float(self.store.settings.precise_scale) * 100, 10.0), 100.0)
+        except Exception:
+            return
+        for name, val in (("_scale_var", pct), ("_scale_entry_var", str(int(round(pct))))):
+            try:
+                var = getattr(self, name, None)
+                if var is not None:
+                    var.set(val)
+            except Exception:
+                pass
+        try:
+            if getattr(self, "_scale_label_var", None) is not None:
+                self._scale_label_var.set(self._scale_label_text())
+        except Exception:
+            pass
+
+    def _apply_scale_percent(self, pct: float) -> None:
+        """スケール操作の単一窓口（スライダー・プリセット・数値の合流点）。"""
+        try:
+            p = float(pct)
+        except Exception:
+            return
+        p = min(max(p, 10.0), 100.0)
+        self._set_scale(p / 100.0)
+        self._sync_scale_widgets()
+
+    def _apply_scale_entry(self, v: str) -> None:
+        try:
+            self._apply_scale_percent(float(str(v).strip().rstrip("%")))
+        except Exception:
+            self._sync_scale_widgets()
 
     def _set_scale(self, v: float) -> None:
         self.store.settings.precise_scale = min(max(float(v), 0.10), 1.0)
