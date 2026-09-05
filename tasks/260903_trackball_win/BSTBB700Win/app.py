@@ -106,7 +106,7 @@ SCALE_PRESETS = (10, 25, 50, 100)
 
 TILT_SUPPRESS_S = 0.3
 
-APP_VERSION = "0.2.11"
+APP_VERSION = "0.2.12"
 
 
 class App:
@@ -513,6 +513,7 @@ class App:
         box = ttk.LabelFrame(parent, text="ボタン割り当て", style="Section.TLabelframe")
         box.pack(fill="x", padx=10, pady=4)
         self._row_vars: dict = {}
+        self._row_buttons: dict = {}
         self._builder_frames: dict = {}
         self._mod_vars: dict = {}
         self._key_vars: dict = {}
@@ -526,12 +527,19 @@ class App:
             var = tk.StringVar(value=txt)
             ttk.Label(frame, textvariable=var, width=24).pack(side="left")
             self._row_vars[bid] = var
-            ttk.Button(frame, text="キャプチャ",
-                       command=lambda b=bid: self._start_capture("map", b)).pack(side="left", padx=2)
-            ttk.Button(frame, text="組み立て",
-                       command=lambda b=bid: self._toggle_builder(b)).pack(side="left", padx=2)
-            ttk.Button(frame, text="クリア", command=lambda b=bid: self._clear(b)).pack(side="left", padx=2)
+            btns = []
+            btns.append(ttk.Button(frame, text="キャプチャ",
+                                   command=lambda b=bid: self._start_capture("map", b)))
+            btns[-1].pack(side="left", padx=2)
+            btns.append(ttk.Button(frame, text="組み立て",
+                                   command=lambda b=bid: self._toggle_builder(b)))
+            btns[-1].pack(side="left", padx=2)
+            btns.append(ttk.Button(frame, text="クリア",
+                                   command=lambda b=bid: self._clear(b)))
+            btns[-1].pack(side="left", padx=2)
+            self._row_buttons[bid] = btns
             self._build_builder(box, bid)
+        self._refresh_rows_safe()
         ttk.Label(box, text="詳細なキー選択はビルダーで指定（vktable一覧）",
                   style="Hint.TLabel").pack(anchor="w", padx=4, pady=(4, 0))
         dirbox = ttk.LabelFrame(parent, text="方向の補正", style="Section.TLabelframe")
@@ -710,9 +718,17 @@ class App:
         self._sync_custom_vk_var()
 
     def _refresh_rows(self) -> None:
+        if getattr(self, "_row_vars", None) is None:
+            return
         for bid, _ in BUTTON_ROWS:
             cur = self.store.mapping_for(bid)
             self._row_vars[bid].set(cur.readable() if cur else "未割り当て")
+            consuming = self.store.is_precise_trigger_consuming(bid)
+            for btn in self._row_buttons.get(bid, []):
+                try:
+                    btn.configure(state="disabled" if consuming else "normal")
+                except Exception:
+                    pass
         if hasattr(self, "_conflict_var"):
             self._conflict_var.set(self.store.conflict_message() or "")
 
@@ -748,6 +764,7 @@ class App:
         combo.bind("<<ComboboxSelected>>",
                    lambda _e: self._set_trigger(DISPLAY_TO_TRIGGER.get(trig_var.get(), "f13")))
         mode_var = tk.StringVar(value=s.precise_mode)
+        self._mode_var = mode_var
         ttk.Radiobutton(base, text="トグル（押すたびON/OFF）", variable=mode_var, value="toggle",
                         command=lambda: self._set_mode(mode_var.get())).pack(anchor="w", padx=4)
         hold_btn = ttk.Radiobutton(base, text="ホールド（押している間のみ・チルトは不可）", variable=mode_var, value="hold",
@@ -818,6 +835,7 @@ class App:
     def _set_precise_enabled(self, v: bool) -> None:
         self.store.settings.precise_enabled = bool(v)
         self.store.save()
+        self._refresh_rows_safe()
 
     def _set_hud_enabled(self, v: bool) -> None:
         self.store.settings.hud_enabled = bool(v)
@@ -830,6 +848,11 @@ class App:
         self.store.settings.precise_trigger = v
         if not is_hold_capable_trigger(v) and self.store.settings.precise_mode == PreciseMode.HOLD.value:
             self.store.settings.precise_mode = PreciseMode.TOGGLE.value
+            try:
+                if getattr(self, "_mode_var", None) is not None:
+                    self._mode_var.set(PreciseMode.TOGGLE.value)
+            except Exception:
+                pass
         self.store.save()
         if hasattr(self, "_precise_hold_btn"):
             try:
@@ -837,6 +860,7 @@ class App:
                     state="normal" if is_hold_capable_trigger(v) else "disabled")
             except Exception:
                 pass
+        self._refresh_rows_safe()
 
     def _set_custom_vk(self, v: str) -> None:
         """custom VK手入力。キャプチャ時と揃え、triggerもcustomKeyへ切替える。"""
@@ -1006,10 +1030,16 @@ class App:
         ttk.Label(parent, text=f"BSTBB700Win {APP_VERSION}", style="Hint.TLabel").pack(anchor="w", padx=8)
         speedbox = ttk.LabelFrame(parent, text="マウス速度", style="Section.TLabelframe")
         speedbox.pack(fill="x", padx=8, pady=6)
+        ttk.Label(speedbox, text="異常終了で低速が残った時だけ使う。通常は触らない。",
+                  style="Hint.TLabel", wraplength=600).pack(anchor="w", padx=4)
         self._speed_var = tk.StringVar(value=self._speed_text())
-        ttk.Label(speedbox, textvariable=self._speed_var, wraplength=600).pack(anchor="w", padx=4)
-        ttk.Button(speedbox, text="速度表示を更新・通常に戻す",
-                   command=self._restore_normal_speed).pack(anchor="w", padx=4, pady=2)
+        ttk.Label(speedbox, textvariable=self._speed_var, wraplength=600).pack(anchor="w", padx=4, pady=(4, 0))
+        spdrow = ttk.Frame(speedbox)
+        spdrow.pack(anchor="w", padx=4, pady=2)
+        ttk.Button(spdrow, text="表示を更新",
+                   command=self._refresh_speed_text).pack(side="left", padx=2)
+        ttk.Button(spdrow, text="通常の速さに戻す",
+                   command=self._restore_normal_speed).pack(side="left", padx=2)
         autobox = ttk.LabelFrame(parent, text="自動起動", style="Section.TLabelframe")
         autobox.pack(fill="x", padx=8, pady=2)
         try:
@@ -1041,6 +1071,8 @@ class App:
             ttk.Label(autobox, text="Windows以外では自動起動に未対応",
                       style="Hint.TLabel").pack(anchor="w", padx=4)
         ttk.Label(autobox, textvariable=self._autostart_msg, wraplength=600).pack(anchor="w", padx=4)
+        ttk.Label(autobox, text="窓の×はトレイ常駐に戻る。終了はトレイメニューの終了から。",
+                  style="Hint.TLabel", wraplength=600).pack(anchor="w", padx=4)
         infobox = ttk.LabelFrame(parent, text="案内・メンテナンス", style="Section.TLabelframe")
         infobox.pack(fill="x", padx=8, pady=2)
         ttk.Label(infobox, text="垂直ホイールは素通し（カスタム対象外）。水平チルトのみ割当対象。",
@@ -1069,6 +1101,12 @@ class App:
         state = "精密ON" if bool(self.precise.is_active) else "精密OFF"
         return f"マウス速度: 現在 {cur} / 通常 {normal}（{state}）"
 
+    def _refresh_speed_text(self) -> None:
+        try:
+            self._speed_var.set(self._speed_text())
+        except Exception:
+            pass
+
     def _restore_normal_speed(self) -> None:
         try:
             target = min(max(int(self.store.settings.normal_speed), 1), 20)
@@ -1086,10 +1124,7 @@ class App:
             self._general_msg.set(msg)
         except Exception:
             pass
-        try:
-            self._speed_var.set(self._speed_text())
-        except Exception:
-            pass
+        self._refresh_speed_text()
         self._sync_status_var()
         self._sync_tray_precise()
 
@@ -1181,6 +1216,22 @@ class App:
         except Exception:
             pass
 
+    def _minimize_to_tray(self) -> None:
+        """×は常駐化（窓だけ隠す）。終了はトレイメニューから。"""
+        try:
+            if self.root is None:
+                return
+            if not bool(self.tray.is_active):
+                self.root.destroy()
+                return
+            self.root.withdraw()
+            try:
+                self.discovery.add("tray: 窓を閉じて常駐継続（終了はトレイメニュー）")
+            except Exception:
+                pass
+        except Exception:
+            pass
+
     def _quit_from_tray(self) -> None:
         try:
             if self.root is None:
@@ -1215,6 +1266,10 @@ class App:
         except Exception:
             pass
         root = self.build_ui()
+        try:
+            root.protocol("WM_DELETE_WINDOW", self._minimize_to_tray)
+        except Exception:
+            pass
         try:
             root.after(100, self._drain_ui_queue)
         except Exception:

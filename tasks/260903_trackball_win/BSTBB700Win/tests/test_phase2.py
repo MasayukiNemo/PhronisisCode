@@ -320,11 +320,46 @@ def test_ui_build_smoke_display_only():
         assert a._advanced_open is True
         a._toggle_advanced()
         assert a._advanced_open is False
+        # 排他行グレー: 進むをトリガーにすると進む行が無効・戻る行は有効
+        # (cgetはindex objectを返すことがあるためinstateで判定)
+        a.store.settings.precise_enabled = True
+        a._set_trigger("mouseForward")
+        assert a._row_buttons["forward"][0].instate(["disabled"])
+        assert a._row_buttons["back"][0].instate(["!disabled"])
+        # 強制トグル: ホールド中にチルトへ変えると設定も見た目もトグル
+        a.store.settings.precise_mode = "hold"
+        a._set_trigger("mouseTiltLeft")
+        assert a.store.settings.precise_mode == "toggle"
+        assert a._mode_var.get() == "toggle"
+        # 常駐化: トレイ起動中は×で隠れ、メニュー操作で戻る
+        a.tray._set_running(True)
+        a._minimize_to_tray()
+        root.update()
+        assert not root.winfo_viewable()
+        a._bring_to_front()
+        root.update()
+        assert root.winfo_viewable()
+        # トレイ停止中は×で終了（縮退時の従来動作）
+        a.tray._set_running(False)
+        a._minimize_to_tray()
+        root.update()
+        try:
+            root.winfo_exists()
+            still = True
+        except Exception:
+            still = False
+        assert still is False
     finally:
         try:
             root.destroy()
         except Exception:
             pass
+
+
+def test_refresh_speed_text_headless_safe():
+    a = _fresh_app()
+    a._refresh_speed_text()  # UIなしでも落ちない
+    assert a._ui_queue.empty()
 
 
 def test_back_trigger_consuming_conflict_hold():
