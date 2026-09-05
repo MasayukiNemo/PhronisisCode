@@ -73,6 +73,7 @@ except ImportError:  # package mode
 
 import tkinter as tk
 from tkinter import ttk
+import queue
 
 import time
 import tempfile
@@ -131,6 +132,8 @@ class App:
         self._disable_flag_cached: bool = False
         self._disable_flag_cache_init: bool = False
         self.root: tk.Tk | None = None
+        # フックスレッド→UIスレッドの唯一の連絡路。tk/trayはdrain経由でのみ触る。
+        self._ui_queue: queue.Queue = queue.Queue()
         self._capturing: dict | None = None
         self._capture_result: tuple | None = None
         self._capture_dialog = None
@@ -159,9 +162,53 @@ class App:
         self._disable_flag_cache_init = True
         return active
 
-    def _flash_hud(self, active: bool, scale: float) -> None:
+    def _post_ui(self, kind: str, **payload) -> None:
+        """どのスレッドからも可。UI操作はdrainに寄せる。"""
         try:
-            self.hud.flash(bool(active), float(scale))
+            self._ui_queue.put_nowait((kind, payload))
+        except Exception:
+            pass
+
+    def _drain_ui_queue(self) -> None:
+        """UIスレッド専用。root.afterループから回す。headlessでは1回処理のみ。"""
+        try:
+            while True:
+                try:
+                    kind, payload = self._ui_queue.get_nowait()
+                except Exception:
+                    break
+                try:
+                    self._apply_ui_event(kind, payload)
+                except Exception:
+                    pass
+        finally:
+            try:
+                if self.root is not None:
+                    self.root.after(100, self._drain_ui_queue)
+            except Exception:
+                pass
+
+    def _apply_ui_event(self, kind: str, payload: dict) -> None:
+        if kind == "precise":
+            try:
+                self.hud.flash(bool(payload.get("active")), float(payload.get("scale", 0.25)))
+            except Exception:
+                pass
+            self._sync_tray_precise()
+            self._sync_status_var()
+        elif kind == "capture_done":
+            self._refresh_rows_safe()
+            self._sync_custom_vk_var()
+        elif kind == "kill":
+            self._sync_status_var()
+            self._sync_tray_precise()
+            self._sync_hook_status_var()
+
+    def _notify_precise_changed(self) -> None:
+        try:
+            s = self.store.settings
+            self._post_ui("precise", active=bool(self.precise.is_active),
+                          scale=float(s.precise_scale))
         except Exception:
             pass
 
@@ -180,6 +227,8 @@ class App:
             pass
 
     def _fire_kill_switch(self) -> None:
+        # 入力復旧のため停止は即実行（どのスレッドでも安全な操作のみ）。
+        # UI同期はdrainに回す。tk/trayには触らない。
         try:
             self.precise.set_active(False, 1.0)
         except Exception:
@@ -192,9 +241,7 @@ class App:
             self.discovery.add("kill-switch: Esc連打でフック停止（設定画面から再開可）")
         except Exception:
             pass
-        self._sync_status_var()
-        self._sync_tray_precise()
-        self._sync_hook_status_var()
+        self._post_ui("kill")
 
     # Router used by hooks and testable directly
     def route_mouse(self, button: str, is_down: bool) -> str:
@@ -217,9 +264,7 @@ class App:
             self.precise.handle_mouse_trigger(button, is_down, s.precise_trigger,
                                               s.precise_mode, s.precise_scale, s.precise_enabled)
             if bool(self.precise.is_active) != before:
-                self._flash_hud(self.precise.is_active, s.precise_scale)
-                self._sync_tray_precise()
-                self._sync_status_var()
+                self._notify_precise_changed()
             return "precise"
         if action == "emit":
             if is_down:
@@ -273,9 +318,7 @@ class App:
                 self.precise.hold_ended(s.precise_mode)
             consumed = True
         if bool(self.precise.is_active) != before:
-            self._flash_hud(self.precise.is_active, s.precise_scale)
-            self._sync_tray_precise()
-            self._sync_status_var()
+            self._notify_precise_changed()
         return consumed
 
     def _live_modifier_bits(self) -> int:
@@ -325,8 +368,7 @@ class App:
             self.store.settings.precise_custom_vk = int(vk)
             self.store.settings.precise_trigger = PreciseTrigger.CUSTOM_KEY.value
             self.store.save()
-        self._refresh_rows_safe()
-        self._sync_custom_vk_var()
+        self._post_ui("capture_done")
         return True
 
     def build_ui(self) -> tk.Tk:
@@ -670,13 +712,22 @@ class App:
         self.store.save()
 
     def _toggle_precise(self) -> None:
+        # UIスレッド専用（ボタン/tray-after経由）。フックスレッドからは呼ばない。
         s = self.store.settings
         before = bool(self.precise.is_active)
         self.precise.toggle(s.precise_scale, s.precise_enabled, s.precise_mode)
         self._sync_status_var()
         if bool(self.precise.is_active) != before:
-            self._flash_hud(self.precise.is_active, s.precise_scale)
-            self._sync_tray_precise()
+            self._flash_hud_direct()
+
+    def _flash_hud_direct(self) -> None:
+        # UIスレッド専用。フックスレッドからは _notify_precise_changed を使う。
+        try:
+            s = self.store.settings
+            self.hud.flash(bool(self.precise.is_active), float(s.precise_scale))
+        except Exception:
+            pass
+        self._sync_tray_precise()
 
     def _build_discovery_tab(self, parent) -> None:
         ttk.Label(parent, text="XBUTTON/HWHEEL/中央の実機ログ用。Win環境でボタンを押して確認").pack(anchor="w", padx=8, pady=4)
@@ -905,6 +956,10 @@ class App:
 
     def run(self) -> None:
         root = self.build_ui()
+        try:
+            root.after(100, self._drain_ui_queue)
+        except Exception:
+            pass
         try:
             ok_tray = self.tray.start(
                 on_show=lambda: root.after(0, self._bring_to_front),

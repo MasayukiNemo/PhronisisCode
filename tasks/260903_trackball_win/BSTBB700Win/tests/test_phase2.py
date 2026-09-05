@@ -301,3 +301,89 @@ def test_restart_hooks_headless_safe():
 def test_hook_status_text():
     a = _fresh_app()
     assert a._hook_status_text() in ("フック動作中", "フック停止中")
+
+
+def test_hook_thread_posts_no_tk_touch():
+    """別スレッドのrouteはtkに触らずキューに積み、drainで反映する。"""
+    import threading
+
+    a = _fresh_app()
+    a.store.settings.precise_trigger = "f13"
+    a.store.settings.precise_mode = "toggle"
+
+    seen = {}
+
+    def worker():
+        try:
+            seen["ret"] = a.route_key(124, True)
+        except Exception as e:  # noqa: BLE001 - record cross-thread failure
+            seen["err"] = e
+
+    t = threading.Thread(target=worker)
+    t.start()
+    t.join(timeout=10)
+    assert "err" not in seen, seen.get("err")
+    assert seen.get("ret") is True
+    assert a.precise.is_active is True
+    kinds = [k for k, _p in list(a._ui_queue.queue)]
+    assert "precise" in kinds
+
+    class _Var:
+        def __init__(self):
+            self.v = ""
+
+        def set(self, v):
+            self.v = v
+
+    a._status_var = _Var()
+    a._drain_ui_queue()
+    assert a._status_var.v == "精密 ON"
+    assert a._ui_queue.empty()
+
+
+def test_hook_thread_capture_defers_refresh():
+    import threading
+
+    a = _fresh_app()
+    a._capturing = {"kind": "map", "button": "back"}
+
+    def worker():
+        a.route_key(65, True)
+
+    t = threading.Thread(target=worker)
+    t.start()
+    t.join(timeout=10)
+    cur = a.store.mapping_for("back")
+    assert cur is not None and cur.vk == 65
+    kinds = [k for k, _p in list(a._ui_queue.queue)]
+    assert "capture_done" in kinds
+    a._drain_ui_queue()  # headlessでも落ちない
+    assert a._ui_queue.empty()
+
+
+def test_hook_thread_kill_stops_and_posts():
+    import threading
+
+    a = _fresh_app()
+
+    class _DummyHooks:
+        running = True
+        stops = 0
+
+        def start(self):
+            self.running = True
+            return True
+
+        def stop(self):
+            self.stops += 1
+            self.running = False
+
+    dummy = _DummyHooks()
+    a.hooks = dummy
+    for _ in range(5):
+        a.route_key(27, True)
+    assert dummy.stops >= 1
+    kinds = [k for k, _p in list(a._ui_queue.queue)]
+    assert "kill" in kinds
+    a._drain_ui_queue()
+    assert a._ui_queue.empty()

@@ -31,6 +31,7 @@
 | 2026-09-05 | 前提監査(Hayato): 実機settingsはmappings空・保存系生存・フック生存の証拠なし。画面ON/OFFはSPI直叩きで説明可能。統一仮説はフック死。決定的証拠は実機でmappings1行+発火 | OK |
 | 2026-09-05 | 実機証言: フック開始失敗・発火なし・キャプチャ無反応でフック死確定 | OK |
 | 2026-09-05 | 真因特定: SetWindowsHookExのhModが誤り。モジュールハンドル渡しは126で失敗、NULLで成功。ctypesサンクはモジュール外のため。hooks.py修正+diag修正+実機live起動確認。49/49 PASS | OK |
+| 2026-09-05 | 全入力死: hMod修正exeで起動直後に全入力stall。核はTclスレッド違反（ポンプスレッドからStringVar.set/after/tray直叩き）。UIキュー+drain一本化に分離、kill即停止+同期遅延。52/52 PASS、Hayato WARN（実機蘇生が条件） | WARN |
 
 ## 自己検証（80%とは brief.md 成功基準の必須項目に対するテスト/手動確認の通過率）
 
