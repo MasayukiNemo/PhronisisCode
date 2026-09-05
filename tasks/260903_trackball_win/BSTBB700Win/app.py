@@ -106,7 +106,7 @@ SCALE_PRESETS = (10, 25, 50, 100)
 
 TILT_SUPPRESS_S = 0.3
 
-APP_VERSION = "0.2.10"
+APP_VERSION = "0.2.11"
 
 
 class App:
@@ -265,12 +265,14 @@ class App:
         except Exception:
             pass
 
+    def _status_text(self) -> str:
+        return "● 精密 ON" if bool(self.precise.is_active) else "○ 精密 OFF"
+
     def _sync_status_var(self) -> None:
         try:
             var = getattr(self, "_status_var", None)
             if var is not None:
-                active = bool(self.precise.is_active)
-                var.set("精密 ON" if active else "精密 OFF")
+                var.set(self._status_text())
         except Exception:
             pass
         try:
@@ -431,7 +433,8 @@ class App:
         return True
 
     def _apply_style(self, root) -> None:
-        """見た目の基盤。失敗時は既定テーマのまま（Mac互換のため全て guarded）。"""
+        """見た目の基盤。素のwinnative基調+Segoe UI+要所色。
+        失敗時は既定のまま（旧OS・Mac互換のため全て guarded）。"""
         try:
             import tkinter.font as tkfont
             for _name in ("TkDefaultFont", "TkTextFont", "TkHeadingFont",
@@ -445,24 +448,27 @@ class App:
             pass
         try:
             style = ttk.Style(root)
-            try:
-                style.theme_use("clam")
-            except Exception:
-                pass
+            for _theme in ("winnative", "vista", "clam"):
+                try:
+                    style.theme_use(_theme)
+                    break
+                except Exception:
+                    continue
             style.configure("Title.TLabel", font=("Segoe UI", 11, "bold"))
-            style.configure("Section.TLabelframe", padding=8)
+            style.configure("Status.TLabel", font=("Segoe UI", 10, "bold"))
+            style.configure("Section.TLabelframe", padding=10)
             style.configure("Section.TLabelframe.Label", font=("Segoe UI", 10, "bold"))
             style.configure("Hint.TLabel", foreground="#555555")
             style.configure("Warn.TLabel", foreground="#B00020")
-            style.configure("On.TLabel", foreground="#0A7A2E")
-            style.configure("Off.TLabel", foreground="#777777")
+            style.configure("On.TLabel", foreground="#0A7A2E", font=("Segoe UI", 10, "bold"))
+            style.configure("Off.TLabel", foreground="#777777", font=("Segoe UI", 10, "bold"))
         except Exception:
             pass
 
     def build_ui(self) -> tk.Tk:
         root = tk.Tk()
         root.title(f"BSTBB700 Customizer (Win) {APP_VERSION}")
-        root.geometry("720x640")
+        root.geometry("760x680")
         self._apply_style(root)
         self.root = root
         try:
@@ -497,16 +503,15 @@ class App:
         return root
 
     def _build_mapping_tab(self, parent) -> None:
-        ttk.Label(parent, text="ボタン割り当て", style="Title.TLabel").pack(anchor="w", padx=8, pady=(4, 0))
         ttk.Label(parent, text="未割り当ては素通し、割り当て時は横取りしてキー送信",
-                  style="Hint.TLabel").pack(anchor="w", padx=8)
+                  style="Hint.TLabel").pack(anchor="w", padx=10, pady=(8, 0))
         ttk.Label(parent, text="※ Escはキャプチャ不可（押すと取消）。Escの割当はビルダーで割当可",
-                  style="Hint.TLabel", wraplength=640).pack(anchor="w", padx=8)
+                  style="Hint.TLabel", wraplength=680).pack(anchor="w", padx=10)
         self._conflict_var = tk.StringVar(value=self.store.conflict_message() or "")
         ttk.Label(parent, textvariable=self._conflict_var, style="Warn.TLabel",
-                  wraplength=640).pack(anchor="w", padx=8)
+                  wraplength=680).pack(anchor="w", padx=10, pady=(0, 4))
         box = ttk.LabelFrame(parent, text="ボタン割り当て", style="Section.TLabelframe")
-        box.pack(fill="x", padx=8, pady=6)
+        box.pack(fill="x", padx=10, pady=4)
         self._row_vars: dict = {}
         self._builder_frames: dict = {}
         self._mod_vars: dict = {}
@@ -514,7 +519,7 @@ class App:
         self._preset_vars: dict = {}
         for bid, label in BUTTON_ROWS:
             frame = ttk.Frame(box)
-            frame.pack(fill="x", padx=4, pady=2)
+            frame.pack(fill="x", padx=4, pady=3)
             ttk.Label(frame, text=label, width=22).pack(side="left")
             cur = self.store.mapping_for(bid)
             txt = cur.readable() if cur else "未割り当て"
@@ -528,9 +533,9 @@ class App:
             ttk.Button(frame, text="クリア", command=lambda b=bid: self._clear(b)).pack(side="left", padx=2)
             self._build_builder(box, bid)
         ttk.Label(box, text="詳細なキー選択はビルダーで指定（vktable一覧）",
-                  style="Hint.TLabel").pack(anchor="w", padx=4, pady=2)
+                  style="Hint.TLabel").pack(anchor="w", padx=4, pady=(4, 0))
         dirbox = ttk.LabelFrame(parent, text="方向の補正", style="Section.TLabelframe")
-        dirbox.pack(fill="x", padx=8, pady=2)
+        dirbox.pack(fill="x", padx=10, pady=6)
         s = self.store.settings
         self._swap_var = tk.BooleanVar(value=bool(s.swap_back_forward))
         ttk.Checkbutton(dirbox, text="進む/戻るを入れ替え (XBUTTON1/2逆転用)",
@@ -729,18 +734,17 @@ class App:
 
     def _build_precise_tab(self, parent) -> None:
         s = self.store.settings
-        ttk.Label(parent, text="精密モード", style="Title.TLabel").pack(anchor="w", padx=8, pady=(4, 0))
         base = ttk.LabelFrame(parent, text="基本", style="Section.TLabelframe")
-        base.pack(fill="x", padx=8, pady=6)
+        base.pack(fill="x", padx=10, pady=(8, 4))
         en_var = tk.BooleanVar(value=s.precise_enabled)
         ttk.Checkbutton(base, text="精密モードを有効化", variable=en_var,
-                        command=lambda: self._set_precise_enabled(en_var.get())).pack(anchor="w", padx=4, pady=2)
+                        command=lambda: self._set_precise_enabled(en_var.get())).pack(anchor="w", padx=4, pady=3)
         ttk.Label(base, text="トリガー選択").pack(anchor="w", padx=4)
         cur_trig = s.precise_trigger if s.precise_trigger in TRIGGER_CHOICES else "f13"
         trig_var = tk.StringVar(value=PreciseTrigger(cur_trig).display)
         combo = ttk.Combobox(base, textvariable=trig_var, values=TRIGGER_DISPLAYS,
                              state="readonly", width=28)
-        combo.pack(anchor="w", padx=4)
+        combo.pack(anchor="w", padx=4, pady=(0, 4))
         combo.bind("<<ComboboxSelected>>",
                    lambda _e: self._set_trigger(DISPLAY_TO_TRIGGER.get(trig_var.get(), "f13")))
         mode_var = tk.StringVar(value=s.precise_mode)
@@ -748,17 +752,19 @@ class App:
                         command=lambda: self._set_mode(mode_var.get())).pack(anchor="w", padx=4)
         hold_btn = ttk.Radiobutton(base, text="ホールド（押している間のみ・チルトは不可）", variable=mode_var, value="hold",
                                    command=lambda: self._set_mode(mode_var.get()))
-        hold_btn.pack(anchor="w", padx=4)
+        hold_btn.pack(anchor="w", padx=4, pady=(0, 4))
         if not is_hold_capable_trigger(s.precise_trigger):
             hold_btn.configure(state="disabled")
         self._precise_hold_btn = hold_btn
-        self._status_var = tk.StringVar(value="精密 ON" if self.precise.is_active else "精密 OFF")
-        self._status_label = ttk.Label(base, textvariable=self._status_var,
+        statusrow = ttk.Frame(base)
+        statusrow.pack(fill="x", padx=4, pady=4)
+        self._status_var = tk.StringVar(value=self._status_text())
+        self._status_label = ttk.Label(statusrow, textvariable=self._status_var,
                                        style="On.TLabel" if self.precise.is_active else "Off.TLabel")
-        self._status_label.pack(anchor="w", padx=4, pady=2)
-        ttk.Button(base, text="ON/OFF切替", command=lambda: self._toggle_precise()).pack(anchor="w", padx=4, pady=2)
+        self._status_label.pack(side="left", padx=(0, 12))
+        ttk.Button(statusrow, text="ON/OFF切替", command=lambda: self._toggle_precise()).pack(side="left")
         scalebox = ttk.LabelFrame(parent, text="減速の強さ", style="Section.TLabelframe")
-        scalebox.pack(fill="x", padx=8, pady=2)
+        scalebox.pack(fill="x", padx=10, pady=4)
         self._scale_label_var = tk.StringVar(value=self._scale_label_text())
         ttk.Label(scalebox, textvariable=self._scale_label_var).pack(anchor="w", padx=4)
         self._scale_var = tk.DoubleVar(value=s.precise_scale * 100)

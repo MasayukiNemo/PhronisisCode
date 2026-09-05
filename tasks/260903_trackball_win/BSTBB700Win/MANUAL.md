@@ -1,7 +1,7 @@
 # BSTBB700Win マニュアル
 
 BUFFALO BSTBB700 トラックボールを Windows 11 でカスタマイズする常駐アプリの取扱説明書。
-対応: Windows 11 64bit / BSTBB700（Bluetooth接続）/ BSTBB700Win 0.2.10
+対応: Windows 11 64bit / BSTBB700（Bluetooth接続）/ BSTBB700Win 0.2.11
 
 ## 目次
 

@@ -510,7 +510,7 @@ def test_hook_thread_posts_no_tk_touch():
 
     a._status_var = _Var()
     a._drain_ui_queue()
-    assert a._status_var.v == "精密 ON"
+    assert a._status_var.v.endswith("精密 ON")
     assert a._ui_queue.empty()
 
 
