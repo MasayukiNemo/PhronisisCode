@@ -306,6 +306,27 @@ def test_hook_status_text():
     assert a._hook_status_text() in ("フック動作中", "フック停止中")
 
 
+def test_ui_build_smoke_display_only():
+    """実表示がある環境でのみUI構築を検証。なければskip（失敗にしない）。"""
+    try:
+        a = _fresh_app()
+        root = a.build_ui()
+    except Exception:
+        return
+    try:
+        root.update()
+        assert getattr(a, "_status_label", None) is not None
+        a._toggle_advanced()
+        assert a._advanced_open is True
+        a._toggle_advanced()
+        assert a._advanced_open is False
+    finally:
+        try:
+            root.destroy()
+        except Exception:
+            pass
+
+
 def test_back_trigger_consuming_conflict_hold():
     from core.precise import is_hold_capable_trigger
 

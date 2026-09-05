@@ -106,7 +106,7 @@ SCALE_PRESETS = (10, 25, 50, 100)
 
 TILT_SUPPRESS_S = 0.3
 
-APP_VERSION = "0.2.9"
+APP_VERSION = "0.2.10"
 
 
 class App:
@@ -269,7 +269,14 @@ class App:
         try:
             var = getattr(self, "_status_var", None)
             if var is not None:
-                var.set("精密 ON" if self.precise.is_active else "精密 OFF")
+                active = bool(self.precise.is_active)
+                var.set("精密 ON" if active else "精密 OFF")
+        except Exception:
+            pass
+        try:
+            lbl = getattr(self, "_status_label", None)
+            if lbl is not None:
+                lbl.configure(style="On.TLabel" if bool(self.precise.is_active) else "Off.TLabel")
         except Exception:
             pass
 
@@ -423,10 +430,40 @@ class App:
         self._post_ui("capture_done")
         return True
 
+    def _apply_style(self, root) -> None:
+        """見た目の基盤。失敗時は既定テーマのまま（Mac互換のため全て guarded）。"""
+        try:
+            import tkinter.font as tkfont
+            for _name in ("TkDefaultFont", "TkTextFont", "TkHeadingFont",
+                          "TkCaptionFont", "TkSmallCaptionFont", "TkMenuFont",
+                          "TkTooltipFont"):
+                try:
+                    tkfont.nametofont(_name).configure(family="Segoe UI", size=9)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        try:
+            style = ttk.Style(root)
+            try:
+                style.theme_use("clam")
+            except Exception:
+                pass
+            style.configure("Title.TLabel", font=("Segoe UI", 11, "bold"))
+            style.configure("Section.TLabelframe", padding=8)
+            style.configure("Section.TLabelframe.Label", font=("Segoe UI", 10, "bold"))
+            style.configure("Hint.TLabel", foreground="#555555")
+            style.configure("Warn.TLabel", foreground="#B00020")
+            style.configure("On.TLabel", foreground="#0A7A2E")
+            style.configure("Off.TLabel", foreground="#777777")
+        except Exception:
+            pass
+
     def build_ui(self) -> tk.Tk:
         root = tk.Tk()
         root.title(f"BSTBB700 Customizer (Win) {APP_VERSION}")
-        root.geometry("700x600")
+        root.geometry("720x640")
+        self._apply_style(root)
         self.root = root
         try:
             self.hud.attach(root)
@@ -460,20 +497,24 @@ class App:
         return root
 
     def _build_mapping_tab(self, parent) -> None:
-        ttk.Label(parent, text="未割り当ては素通し、割り当て時は横取りしてキー送信").pack(anchor="w", padx=8, pady=4)
+        ttk.Label(parent, text="ボタン割り当て", style="Title.TLabel").pack(anchor="w", padx=8, pady=(4, 0))
+        ttk.Label(parent, text="未割り当ては素通し、割り当て時は横取りしてキー送信",
+                  style="Hint.TLabel").pack(anchor="w", padx=8)
         ttk.Label(parent, text="※ Escはキャプチャ不可（押すと取消）。Escの割当はビルダーで割当可",
-                  wraplength=640).pack(anchor="w", padx=8)
+                  style="Hint.TLabel", wraplength=640).pack(anchor="w", padx=8)
         self._conflict_var = tk.StringVar(value=self.store.conflict_message() or "")
-        ttk.Label(parent, textvariable=self._conflict_var, foreground="red",
+        ttk.Label(parent, textvariable=self._conflict_var, style="Warn.TLabel",
                   wraplength=640).pack(anchor="w", padx=8)
+        box = ttk.LabelFrame(parent, text="ボタン割り当て", style="Section.TLabelframe")
+        box.pack(fill="x", padx=8, pady=6)
         self._row_vars: dict = {}
         self._builder_frames: dict = {}
         self._mod_vars: dict = {}
         self._key_vars: dict = {}
         self._preset_vars: dict = {}
         for bid, label in BUTTON_ROWS:
-            frame = ttk.Frame(parent)
-            frame.pack(fill="x", padx=8, pady=2)
+            frame = ttk.Frame(box)
+            frame.pack(fill="x", padx=4, pady=2)
             ttk.Label(frame, text=label, width=22).pack(side="left")
             cur = self.store.mapping_for(bid)
             txt = cur.readable() if cur else "未割り当て"
@@ -485,17 +526,20 @@ class App:
             ttk.Button(frame, text="組み立て",
                        command=lambda b=bid: self._toggle_builder(b)).pack(side="left", padx=2)
             ttk.Button(frame, text="クリア", command=lambda b=bid: self._clear(b)).pack(side="left", padx=2)
-            self._build_builder(parent, bid)
-        ttk.Label(parent, text="詳細なキー選択はビルダーで指定（vktable一覧）").pack(anchor="w", padx=8, pady=4)
+            self._build_builder(box, bid)
+        ttk.Label(box, text="詳細なキー選択はビルダーで指定（vktable一覧）",
+                  style="Hint.TLabel").pack(anchor="w", padx=4, pady=2)
+        dirbox = ttk.LabelFrame(parent, text="方向の補正", style="Section.TLabelframe")
+        dirbox.pack(fill="x", padx=8, pady=2)
         s = self.store.settings
         self._swap_var = tk.BooleanVar(value=bool(s.swap_back_forward))
-        ttk.Checkbutton(parent, text="進む/戻るを入れ替え (XBUTTON1/2逆転用)",
+        ttk.Checkbutton(dirbox, text="進む/戻るを入れ替え (XBUTTON1/2逆転用)",
                         variable=self._swap_var,
-                        command=lambda: self._set_swap(self._swap_var.get())).pack(anchor="w", padx=8)
+                        command=lambda: self._set_swap(self._swap_var.get())).pack(anchor="w", padx=4)
         self._tilt_var = tk.BooleanVar(value=bool(s.tilt_inverted))
-        ttk.Checkbutton(parent, text="チルト左右を反転 (HWHEEL符号逆転用)",
+        ttk.Checkbutton(dirbox, text="チルト左右を反転 (HWHEEL符号逆転用)",
                         variable=self._tilt_var,
-                        command=lambda: self._set_tilt_inv(self._tilt_var.get())).pack(anchor="w", padx=8)
+                        command=lambda: self._set_tilt_inv(self._tilt_var.get())).pack(anchor="w", padx=4)
 
     def _set_swap(self, v: bool) -> None:
         self.store.settings.swap_back_forward = bool(v)
@@ -685,32 +729,43 @@ class App:
 
     def _build_precise_tab(self, parent) -> None:
         s = self.store.settings
+        ttk.Label(parent, text="精密モード", style="Title.TLabel").pack(anchor="w", padx=8, pady=(4, 0))
+        base = ttk.LabelFrame(parent, text="基本", style="Section.TLabelframe")
+        base.pack(fill="x", padx=8, pady=6)
         en_var = tk.BooleanVar(value=s.precise_enabled)
-        ttk.Checkbutton(parent, text="精密モードを有効化", variable=en_var,
-                        command=lambda: self._set_precise_enabled(en_var.get())).pack(anchor="w", padx=8, pady=4)
-        ttk.Label(parent, text="トリガー選択").pack(anchor="w", padx=8)
+        ttk.Checkbutton(base, text="精密モードを有効化", variable=en_var,
+                        command=lambda: self._set_precise_enabled(en_var.get())).pack(anchor="w", padx=4, pady=2)
+        ttk.Label(base, text="トリガー選択").pack(anchor="w", padx=4)
         cur_trig = s.precise_trigger if s.precise_trigger in TRIGGER_CHOICES else "f13"
         trig_var = tk.StringVar(value=PreciseTrigger(cur_trig).display)
-        combo = ttk.Combobox(parent, textvariable=trig_var, values=TRIGGER_DISPLAYS,
+        combo = ttk.Combobox(base, textvariable=trig_var, values=TRIGGER_DISPLAYS,
                              state="readonly", width=28)
-        combo.pack(anchor="w", padx=8)
+        combo.pack(anchor="w", padx=4)
         combo.bind("<<ComboboxSelected>>",
                    lambda _e: self._set_trigger(DISPLAY_TO_TRIGGER.get(trig_var.get(), "f13")))
-        ttk.Label(parent, text="customKey用VK (例 124=F13, 20=CapsLock)").pack(anchor="w", padx=8, pady=(6, 0))
-        custom_var = tk.StringVar(value=str(s.precise_custom_vk))
-        self._custom_vk_var = custom_var
-        ttk.Entry(parent, textvariable=custom_var, width=12).pack(anchor="w", padx=8)
-        ttk.Button(parent, text="custom VK適用",
-                   command=lambda: self._set_custom_vk(custom_var.get())).pack(anchor="w", padx=8, pady=2)
-        ttk.Button(parent, text="キャプチャで設定",
-                   command=lambda: self._start_capture("custom")).pack(anchor="w", padx=8, pady=2)
+        mode_var = tk.StringVar(value=s.precise_mode)
+        ttk.Radiobutton(base, text="トグル（押すたびON/OFF）", variable=mode_var, value="toggle",
+                        command=lambda: self._set_mode(mode_var.get())).pack(anchor="w", padx=4)
+        hold_btn = ttk.Radiobutton(base, text="ホールド（押している間のみ・チルトは不可）", variable=mode_var, value="hold",
+                                   command=lambda: self._set_mode(mode_var.get()))
+        hold_btn.pack(anchor="w", padx=4)
+        if not is_hold_capable_trigger(s.precise_trigger):
+            hold_btn.configure(state="disabled")
+        self._precise_hold_btn = hold_btn
+        self._status_var = tk.StringVar(value="精密 ON" if self.precise.is_active else "精密 OFF")
+        self._status_label = ttk.Label(base, textvariable=self._status_var,
+                                       style="On.TLabel" if self.precise.is_active else "Off.TLabel")
+        self._status_label.pack(anchor="w", padx=4, pady=2)
+        ttk.Button(base, text="ON/OFF切替", command=lambda: self._toggle_precise()).pack(anchor="w", padx=4, pady=2)
+        scalebox = ttk.LabelFrame(parent, text="減速の強さ", style="Section.TLabelframe")
+        scalebox.pack(fill="x", padx=8, pady=2)
         self._scale_label_var = tk.StringVar(value=self._scale_label_text())
-        ttk.Label(parent, textvariable=self._scale_label_var).pack(anchor="w", padx=8)
+        ttk.Label(scalebox, textvariable=self._scale_label_var).pack(anchor="w", padx=4)
         self._scale_var = tk.DoubleVar(value=s.precise_scale * 100)
-        ttk.Scale(parent, from_=10, to=100, variable=self._scale_var, orient="horizontal",
-                  command=lambda *_: self._apply_scale_percent(float(self._scale_var.get()))).pack(fill="x", padx=8)
-        srow = ttk.Frame(parent)
-        srow.pack(anchor="w", padx=8, pady=2)
+        ttk.Scale(scalebox, from_=10, to=100, variable=self._scale_var, orient="horizontal",
+                  command=lambda *_: self._apply_scale_percent(float(self._scale_var.get()))).pack(fill="x", padx=4)
+        srow = ttk.Frame(scalebox)
+        srow.pack(anchor="w", padx=4, pady=2)
         for pct in SCALE_PRESETS:
             ttk.Button(srow, text=f"{pct}%",
                        command=lambda p=pct: self._apply_scale_percent(float(p))).pack(side="left", padx=2)
@@ -718,23 +773,41 @@ class App:
         ttk.Entry(srow, textvariable=self._scale_entry_var, width=6).pack(side="left", padx=2)
         ttk.Button(srow, text="適用",
                    command=lambda: self._apply_scale_entry(self._scale_entry_var.get())).pack(side="left", padx=2)
-        mode_var = tk.StringVar(value=s.precise_mode)
-        ttk.Radiobutton(parent, text="トグル", variable=mode_var, value="toggle",
-                        command=lambda: self._set_mode(mode_var.get())).pack(anchor="w", padx=8)
-        hold_btn = ttk.Radiobutton(parent, text="ホールド（チルトは不可）", variable=mode_var, value="hold",
-                                   command=lambda: self._set_mode(mode_var.get()))
-        hold_btn.pack(anchor="w", padx=8)
-        if not is_hold_capable_trigger(s.precise_trigger):
-            hold_btn.configure(state="disabled")
-        self._precise_hold_btn = hold_btn
-        self._status_var = tk.StringVar(value="精密 ON" if self.precise.is_active else "精密 OFF")
-        ttk.Label(parent, textvariable=self._status_var).pack(anchor="w", padx=8, pady=4)
-        ttk.Button(parent, text="ON/OFF切替", command=lambda: self._toggle_precise()).pack(anchor="w", padx=8)
+        ttk.Label(scalebox, text="注意: グローバル減速。全マウスとタッチパッドが減速します。",
+                  style="Hint.TLabel", wraplength=640).pack(anchor="w", padx=4, pady=2)
+        self._advanced_open = False
+        ttk.Button(parent, text="詳細設定（カスタムキー・HUD）",
+                   command=self._toggle_advanced).pack(anchor="w", padx=8, pady=2)
+        adv = ttk.LabelFrame(parent, text="詳細設定", style="Section.TLabelframe")
+        self._advanced_frame = adv
+        ttk.Label(adv, text="カスタムキー用VK (例 124=F13, 20=CapsLock)",
+                  style="Hint.TLabel").pack(anchor="w", padx=4)
+        custom_var = tk.StringVar(value=str(s.precise_custom_vk))
+        self._custom_vk_var = custom_var
+        ttk.Entry(adv, textvariable=custom_var, width=12).pack(anchor="w", padx=4)
+        abtn = ttk.Frame(adv)
+        abtn.pack(anchor="w", padx=4, pady=2)
+        ttk.Button(abtn, text="custom VK適用",
+                   command=lambda: self._set_custom_vk(custom_var.get())).pack(side="left", padx=2)
+        ttk.Button(abtn, text="キャプチャで設定",
+                   command=lambda: self._start_capture("custom")).pack(side="left", padx=2)
         hud_var = tk.BooleanVar(value=bool(s.hud_enabled))
-        ttk.Checkbutton(parent, text="切替時にHUD表示する",
+        ttk.Checkbutton(adv, text="切替時にHUD表示する",
                         variable=hud_var,
-                        command=lambda: self._set_hud_enabled(hud_var.get())).pack(anchor="w", padx=8)
-        ttk.Label(parent, text="注意: MVPはグローバル減速。全マウスとタッチパッドが減速します。").pack(anchor="w", padx=8, pady=4)
+                        command=lambda: self._set_hud_enabled(hud_var.get())).pack(anchor="w", padx=4)
+
+    def _toggle_advanced(self) -> None:
+        try:
+            self._advanced_open = not bool(getattr(self, "_advanced_open", False))
+            box = getattr(self, "_advanced_frame", None)
+            if box is None:
+                return
+            if self._advanced_open:
+                box.pack(fill="x", padx=8, pady=2)
+            else:
+                box.pack_forget()
+        except Exception:
+            pass
 
     def _set_precise_enabled(self, v: bool) -> None:
         self.store.settings.precise_enabled = bool(v)
@@ -845,7 +918,9 @@ class App:
         self._sync_tray_precise()
 
     def _build_discovery_tab(self, parent) -> None:
-        ttk.Label(parent, text="XBUTTON/HWHEEL/中央の実機ログ用。Win環境でボタンを押して確認").pack(anchor="w", padx=8, pady=4)
+        ttk.Label(parent, text="Discovery", style="Title.TLabel").pack(anchor="w", padx=8, pady=(4, 0))
+        ttk.Label(parent, text="XBUTTON/HWHEEL/中央の実機ログ用。Win環境でボタンを押して確認",
+                  style="Hint.TLabel").pack(anchor="w", padx=8)
         self._disc_text = tk.Text(parent, height=16)
         self._disc_text.pack(fill="both", expand=True, padx=8)
         row = ttk.Frame(parent)
@@ -921,11 +996,16 @@ class App:
             pass
 
     def _build_general_tab(self, parent) -> None:
-        ttk.Label(parent, text=f"BSTBB700Win {APP_VERSION}").pack(anchor="w", padx=8, pady=4)
+        ttk.Label(parent, text="一般", style="Title.TLabel").pack(anchor="w", padx=8, pady=(4, 0))
+        ttk.Label(parent, text=f"BSTBB700Win {APP_VERSION}", style="Hint.TLabel").pack(anchor="w", padx=8)
+        speedbox = ttk.LabelFrame(parent, text="マウス速度", style="Section.TLabelframe")
+        speedbox.pack(fill="x", padx=8, pady=6)
         self._speed_var = tk.StringVar(value=self._speed_text())
-        ttk.Label(parent, textvariable=self._speed_var, wraplength=640).pack(anchor="w", padx=8)
-        ttk.Button(parent, text="速度表示を更新・通常に戻す",
-                   command=self._restore_normal_speed).pack(anchor="w", padx=8, pady=2)
+        ttk.Label(speedbox, textvariable=self._speed_var, wraplength=600).pack(anchor="w", padx=4)
+        ttk.Button(speedbox, text="速度表示を更新・通常に戻す",
+                   command=self._restore_normal_speed).pack(anchor="w", padx=4, pady=2)
+        autobox = ttk.LabelFrame(parent, text="自動起動", style="Section.TLabelframe")
+        autobox.pack(fill="x", padx=8, pady=2)
         try:
             auto_on = bool(autostart_is_enabled())
         except Exception:
@@ -936,34 +1016,40 @@ class App:
             frozen = False
         self._autostart_var = tk.BooleanVar(value=auto_on)
         self._autostart_msg = tk.StringVar(value="")
-        auto_cb = ttk.Checkbutton(parent, text="Windows起動時に自動起動（レジストリRun）",
+        auto_cb = ttk.Checkbutton(autobox, text="Windows起動時に自動起動（レジストリRun）",
                                   variable=self._autostart_var,
                                   command=lambda: self._toggle_autostart())
-        auto_cb.pack(anchor="w", padx=8)
+        auto_cb.pack(anchor="w", padx=4)
         if not frozen:
             try:
                 auto_cb.configure(state="disabled")
             except Exception:
                 pass
-            ttk.Label(parent, text="開発実行中は登録不可（凍結exeのみ登録可）").pack(anchor="w", padx=8)
+            ttk.Label(autobox, text="開発実行中は登録不可（凍結exeのみ登録可）",
+                      style="Hint.TLabel").pack(anchor="w", padx=4)
         elif os.name != "nt":
             try:
                 auto_cb.configure(state="disabled")
             except Exception:
                 pass
-            ttk.Label(parent, text="Windows以外では自動起動に未対応").pack(anchor="w", padx=8)
-        ttk.Label(parent, textvariable=self._autostart_msg, wraplength=640).pack(anchor="w", padx=8)
-        ttk.Label(parent, text="垂直ホイールは素通し（カスタム対象外）。水平チルトのみ割当対象。",
-                  wraplength=640).pack(anchor="w", padx=8, pady=4)
-        ttk.Label(parent, text="AV/SmartScreen案内: フック+SendInputのため誤検知時は除外設定を行うこと。"
+            ttk.Label(autobox, text="Windows以外では自動起動に未対応",
+                      style="Hint.TLabel").pack(anchor="w", padx=4)
+        ttk.Label(autobox, textvariable=self._autostart_msg, wraplength=600).pack(anchor="w", padx=4)
+        infobox = ttk.LabelFrame(parent, text="案内・メンテナンス", style="Section.TLabelframe")
+        infobox.pack(fill="x", padx=8, pady=2)
+        ttk.Label(infobox, text="垂直ホイールは素通し（カスタム対象外）。水平チルトのみ割当対象。",
+                  style="Hint.TLabel", wraplength=600).pack(anchor="w", padx=4)
+        ttk.Label(infobox, text="AV/SmartScreen案内: フック+SendInputのため誤検知時は除外設定を行うこと。"
                   "署名なしMVPのためSmartScreen警告時は「詳細情報→実行」。",
-                  wraplength=640).pack(anchor="w", padx=8, pady=4)
-        ttk.Button(parent, text="設定フォルダを開く",
-                   command=self._open_settings_folder).pack(anchor="w", padx=8, pady=2)
-        ttk.Button(parent, text="設定リセット",
-                   command=self._reset_settings).pack(anchor="w", padx=8, pady=2)
+                  style="Hint.TLabel", wraplength=600).pack(anchor="w", padx=4, pady=2)
+        mrow = ttk.Frame(infobox)
+        mrow.pack(anchor="w", padx=4, pady=2)
+        ttk.Button(mrow, text="設定フォルダを開く",
+                   command=self._open_settings_folder).pack(side="left", padx=2)
+        ttk.Button(mrow, text="設定リセット",
+                   command=self._reset_settings).pack(side="left", padx=2)
         self._general_msg = tk.StringVar(value="")
-        ttk.Label(parent, textvariable=self._general_msg, wraplength=640).pack(anchor="w", padx=8)
+        ttk.Label(infobox, textvariable=self._general_msg, wraplength=600).pack(anchor="w", padx=4)
 
     def _speed_text(self) -> str:
         try:
