@@ -106,7 +106,7 @@ SCALE_PRESETS = (10, 25, 50, 100)
 
 TILT_SUPPRESS_S = 0.3
 
-APP_VERSION = "0.2.12"
+APP_VERSION = "0.2.13"
 
 
 class App:
@@ -246,6 +246,10 @@ class App:
         elif kind == "capture_done":
             self._refresh_rows_safe()
             self._sync_custom_vk_var()
+            try:
+                self._sync_trigger_ui(self.store.settings.precise_trigger)
+            except Exception:
+                pass
         elif kind == "kill":
             self._sync_status_var()
             self._sync_tray_precise()
@@ -421,6 +425,11 @@ class App:
         cap = self._capturing or {}
         kind = cap.get("kind")
         button = cap.get("button")
+        if kind == "map" and button and self.store.is_precise_trigger_consuming(button):
+            self._capture_result = None
+            self._capturing = None
+            self._post_ui("capture_done")
+            return True
         self._capture_result = (int(vk), int(mods))
         self._capturing = None
         if kind == "map" and button:
@@ -627,6 +636,8 @@ class App:
             break
 
     def _apply_builder(self, bid: str) -> None:
+        if self.store.is_precise_trigger_consuming(bid):
+            return  # 排他行への裏口割当を塞ぐ（展開済みビルダー対策）
         disp = self._key_vars[bid].get()
         vk: int | None = None
         if "(VK" in disp and disp.endswith(")"):
@@ -758,6 +769,7 @@ class App:
         ttk.Label(base, text="トリガー選択").pack(anchor="w", padx=4)
         cur_trig = s.precise_trigger if s.precise_trigger in TRIGGER_CHOICES else "f13"
         trig_var = tk.StringVar(value=PreciseTrigger(cur_trig).display)
+        self._trigger_var = trig_var
         combo = ttk.Combobox(base, textvariable=trig_var, values=TRIGGER_DISPLAYS,
                              state="readonly", width=28)
         combo.pack(anchor="w", padx=4, pady=(0, 4))
@@ -841,6 +853,21 @@ class App:
         self.store.settings.hud_enabled = bool(v)
         self.store.save()
 
+    def _sync_trigger_ui(self, v: str) -> None:
+        if hasattr(self, "_precise_hold_btn"):
+            try:
+                self._precise_hold_btn.configure(
+                    state="normal" if is_hold_capable_trigger(v) else "disabled")
+            except Exception:
+                pass
+        try:
+            var = getattr(self, "_trigger_var", None)
+            if var is not None and v in TRIGGER_CHOICES:
+                var.set(PreciseTrigger(v).display)
+        except Exception:
+            pass
+        self._refresh_rows_safe()
+
     def _set_trigger(self, v: str) -> None:
         vals = [e.value for e in PreciseTrigger]
         if v not in vals:
@@ -854,13 +881,7 @@ class App:
             except Exception:
                 pass
         self.store.save()
-        if hasattr(self, "_precise_hold_btn"):
-            try:
-                self._precise_hold_btn.configure(
-                    state="normal" if is_hold_capable_trigger(v) else "disabled")
-            except Exception:
-                pass
-        self._refresh_rows_safe()
+        self._sync_trigger_ui(v)
 
     def _set_custom_vk(self, v: str) -> None:
         """custom VK手入力。キャプチャ時と揃え、triggerもcustomKeyへ切替える。"""
@@ -873,6 +894,7 @@ class App:
         self.store.settings.precise_custom_vk = vk
         self.store.settings.precise_trigger = PreciseTrigger.CUSTOM_KEY.value
         self.store.save()
+        self._sync_trigger_ui(PreciseTrigger.CUSTOM_KEY.value)
 
     def _scale_label_text(self) -> str:
         try:
@@ -923,6 +945,11 @@ class App:
 
     def _set_mode(self, v: str) -> None:
         if v == PreciseMode.HOLD.value and not is_hold_capable_trigger(self.store.settings.precise_trigger):
+            try:
+                if getattr(self, "_mode_var", None) is not None:
+                    self._mode_var.set(self.store.settings.precise_mode)
+            except Exception:
+                pass
             return
         self.store.settings.precise_mode = v
         self.store.save()

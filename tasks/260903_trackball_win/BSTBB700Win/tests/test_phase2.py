@@ -362,6 +362,74 @@ def test_refresh_speed_text_headless_safe():
     assert a._ui_queue.empty()
 
 
+def test_builder_backdoor_blocked_on_consuming_row():
+    a = _fresh_app()
+    a.store.settings.precise_trigger = "mouseForward"
+    # ビルダー欄を直書きしても排他行には反映されない
+    a._key_vars = {"forward": _FakeVar("C (VK67)")}
+    a._mod_vars = {"forward": {"ctrl": _FakeVar(True), "shift": _FakeVar(False),
+                               "alt": _FakeVar(False), "win": _FakeVar(False)}}
+    a._apply_builder("forward")
+    assert a.store.mapping_for("forward") is None
+    a.store.settings.precise_trigger = "mouseTiltLeft"
+    a._apply_builder("forward")
+    cur = a.store.mapping_for("forward")
+    assert cur is not None and cur.vk == 67
+
+
+class _FakeVar:
+    def __init__(self, v):
+        self._v = v
+
+    def get(self):
+        return self._v
+
+    def set(self, v):
+        self._v = v
+
+
+def test_mode_rejected_restores_display():
+    a = _fresh_app()
+    a._mode_var = _FakeVar("toggle")
+    a.store.settings.precise_trigger = "mouseTiltLeft"
+    a._set_mode("hold")  # チルトでは不可→設定も表示もtoggleのまま
+    assert a.store.settings.precise_mode == "toggle"
+    assert a._mode_var.get() == "toggle"
+
+
+def test_custom_vk_syncs_trigger_ui():
+    a = _fresh_app()
+    a.store.settings.precise_trigger = "mouseTiltLeft"
+    a._set_custom_vk("65")
+    assert a.store.settings.precise_trigger == "customKey"
+    assert a.store.settings.precise_custom_vk == 65
+    # チルト行の排他が解けている
+    assert a.store.is_precise_trigger_consuming("tiltLeft") is False
+
+
+def test_capture_blocked_on_consuming_row():
+    a = _fresh_app()
+    a.store.settings.precise_trigger = "mouseForward"
+    a._capturing = {"kind": "map", "button": "forward"}
+    assert a.route_key(67, True) is True
+    assert a._capturing is None
+    assert a.store.mapping_for("forward") is None
+
+
+def test_preset_unassigned_clears_consuming_row():
+    a = _fresh_app()
+    a.store.settings.precise_trigger = "mouseForward"
+    a.store.set_mapping("forward", KeyCombo(vk=67, modifiers=KeyCombo.MOD_CTRL))
+    assert a.store.conflict_message() is not None
+    a._preset_vars = {"forward": _FakeVar("未割り当て")}
+    a._mod_vars = {"forward": {"ctrl": _FakeVar(False), "shift": _FakeVar(False),
+                               "alt": _FakeVar(False), "win": _FakeVar(False)}}
+    a._key_vars = {"forward": _FakeVar("C (VK67)")}
+    a._apply_preset_to_builder("forward")
+    assert a.store.mapping_for("forward") is None
+    assert a.store.conflict_message() is None
+
+
 def test_back_trigger_consuming_conflict_hold():
     from core.precise import is_hold_capable_trigger
 
