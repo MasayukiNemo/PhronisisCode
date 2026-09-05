@@ -9,11 +9,16 @@ from __future__ import annotations
 MAG_INTERVAL_MS = 100
 OFFSET_X = 24
 OFFSET_Y = 24
-DEFAULT_SIZE = 240
-MIN_SIZE = 120
+DEFAULT_SIZE = 160
+MIN_SIZE = 80
 MAX_SIZE = 480
 ZOOM_CHOICES = (2, 3, 4)
 DEFAULT_ZOOM = 2
+
+
+def geometry_string(size: int, wx: int, wy: int) -> str:
+    """符号つき形状文字列。負座標（左・上画面）でも壊れない。"""
+    return f"{int(size)}x{int(size)}{int(wx):+d}{int(wy):+d}"
 
 
 def virtual_screen() -> tuple:
@@ -69,7 +74,9 @@ class MagnifierController:
         self._win = None
         self.visible = False
         self._region_size: int | None = None
+        self.region_applied = False
         self.last_paint_ok: bool | None = None
+        self.last_paint_error: int | str | None = None
         self.last_layout: dict | None = None
 
     def _settings(self):
@@ -103,6 +110,7 @@ class MagnifierController:
     def hide(self) -> None:
         self.visible = False
         self._region_size = None
+        self.region_applied = False
         win, self._win = self._win, None
         try:
             if win is not None:
@@ -111,12 +119,23 @@ class MagnifierController:
         except Exception:
             pass
 
+    def status_text(self) -> str:
+        if not self.visible:
+            return "拡大鏡: 停止中"
+        paint = "描画OK" if self.last_paint_ok else f"描画NG({self.last_paint_error})"
+        shape = "円形" if self.region_applied else "矩形"
+        lay = self.last_layout or {}
+        return (f"拡大鏡: 表示中・{paint}・{shape} "
+                f"窓({lay.get('wx')},{lay.get('wy')},{lay.get('size')}) "
+                f"元({lay.get('sx')},{lay.get('sy')},{lay.get('src')})")
+
     def _apply_circle(self, size: int) -> None:
         """窓を円形にする。大きさ変化時のみ適用。失敗時は矩形のまま。
         リージョン所有権はSetWindowRgn成功でOSへ移るためDeleteしない。
         窓破棄時にOSが回収する。"""
         if self._region_size == int(size):
             return
+        self.region_applied = False
         try:
             from .winapi import gdi32, user32
         except ImportError:
@@ -128,6 +147,7 @@ class MagnifierController:
                 return
             if int(user32.SetWindowRgn(hwnd, hrgn, True)):
                 self._region_size = int(size)
+                self.region_applied = True
                 return
             try:
                 gdi32.DeleteObject(hrgn)
@@ -163,7 +183,7 @@ class MagnifierController:
             lay = compute_layout(cx, cy, size, zoom, vw, vh, org_x=ox, org_y=oy)
             self.last_layout = dict(lay)
             try:
-                self._win.geometry(f"{lay['size']}x{lay['size']}+{lay['wx']}+{lay['wy']}")
+                self._win.geometry(geometry_string(lay["size"], lay["wx"], lay["wy"]))
                 self._win.deiconify()
                 self._win.lift()
             except Exception:
@@ -196,12 +216,13 @@ class MagnifierController:
 
     def _paint(self, lay: dict) -> bool:
         try:
-            from .winapi import SRCCOPY, gdi32, user32
+            from .winapi import SRCCOPY, gdi32, last_error, user32
         except ImportError:
-            from core.winapi import SRCCOPY, gdi32, user32
+            from core.winapi import SRCCOPY, gdi32, last_error, user32
         try:
             hwnd = int(self._win.winfo_id())
         except Exception:
+            self.last_paint_error = "no-hwnd"
             return False
         try:
             h_screen = user32.GetDC(None)
@@ -210,6 +231,7 @@ class MagnifierController:
                 ok = bool(gdi32.StretchBlt(h_win, 0, 0, lay["size"], lay["size"],
                                            h_screen, lay["sx"], lay["sy"],
                                            lay["src"], lay["src"], SRCCOPY))
+                self.last_paint_error = None if ok else last_error()
             finally:
                 try:
                     user32.ReleaseDC(hwnd, h_win)
@@ -220,5 +242,6 @@ class MagnifierController:
                 except Exception:
                     pass
             return ok
-        except Exception:
+        except Exception as e:
+            self.last_paint_error = str(e)
             return False

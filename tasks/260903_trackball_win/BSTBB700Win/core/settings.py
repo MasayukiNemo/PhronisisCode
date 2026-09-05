@@ -124,7 +124,7 @@ class AppSettings:
     hud_enabled: bool = True
     magnifier_enabled: bool = True
     magnifier_zoom: int = 2
-    magnifier_size: int = 240
+    magnifier_size: int = 160
 
     def to_json_dict(self) -> dict:
         return {
@@ -188,10 +188,10 @@ class AppSettings:
         if s.magnifier_zoom not in (2, 3, 4):
             s.magnifier_zoom = 2
         try:
-            s.magnifier_size = int(d.get("magnifierSize", 240))
+            s.magnifier_size = int(d.get("magnifierSize", 160))
         except Exception:
-            s.magnifier_size = 240
-        s.magnifier_size = min(max(s.magnifier_size, 120), 480)
+            s.magnifier_size = 160
+        s.magnifier_size = min(max(s.magnifier_size, 80), 480)
         return s
 
 

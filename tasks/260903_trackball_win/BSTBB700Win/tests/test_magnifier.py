@@ -8,7 +8,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 import app as appmod
 from core.magnifier import (DEFAULT_SIZE, DEFAULT_ZOOM, MAG_INTERVAL_MS,
-                            MagnifierController, compute_layout)
+                            MagnifierController, compute_layout,
+                            geometry_string)
 from core.settings import SettingsStore
 
 
@@ -73,9 +74,9 @@ def test_setters_clamp():
     a._set_magnifier_size(1000)
     assert a.store.settings.magnifier_size == 480
     a._set_magnifier_size(50)
-    assert a.store.settings.magnifier_size == 120
+    assert a.store.settings.magnifier_size == 80
     assert MAG_INTERVAL_MS == 100
-    assert DEFAULT_SIZE == 240 and DEFAULT_ZOOM == 2
+    assert DEFAULT_SIZE == 160 and DEFAULT_ZOOM == 2
 
 
 def test_layout_virtual_origin():
@@ -92,3 +93,22 @@ def test_virtual_screen_returns_tuple():
     vs = virtual_screen()
     assert len(vs) == 4
     assert vs[2] >= 0 and vs[3] >= 0
+
+
+def test_geometry_string_sign():
+    assert geometry_string(160, 938, 607) == "160x160+938+607"
+    assert geometry_string(160, -100, 480) == "160x160-100+480"
+    assert geometry_string(160, 50, -1082) == "160x160+50-1082"
+
+
+def test_status_text_states():
+    c = MagnifierController(settings_provider=lambda: None)
+    assert c.status_text() == "拡大鏡: 停止中"
+    c.visible = True
+    c.last_paint_ok = False
+    c.last_paint_error = 5
+    c.region_applied = False
+    c.last_layout = {"wx": 1, "wy": 2, "size": 160,
+                     "sx": 3, "sy": 4, "src": 80}
+    txt = c.status_text()
+    assert "描画NG(5)" in txt and "矩形" in txt
