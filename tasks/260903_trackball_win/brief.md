@@ -41,3 +41,7 @@ Windows 11でBluetooth接続の5ボタントラックボールBSTBB700（チル�
 | 精密減速 | SystemParametersInfo SPI_SETMOUSESPEED一時変更 | deltaスケール/Warp | Mac版でdelta無視とWarp逆走が確定したため。Winでもシステム速度変更が確実で方向を触らない |
 | 精密トリガー | 単一選択+トグル/ホールド択一、中央と進むはホールド可、チルトはトグルのみ | 全ボタンでホールド可 | チルトはupイベントがないためホールド不可。WinではXBUTTONでdown/upが取れるため進む/中央はホールド可としMacの制約を緩和 |
 | 設定保存 | %APPDATA%/BSTBB700/settings.json | レジストリ | JSONは人間可読でMac版UserDefaultsと対応し引き継ぎが容易 |
+| UI拡充Phase1技術 | Python+tkinter継続・段階的全部盛り | C#作り直し | Win機で検証継続が勝つ。配布性のみでは作り直しのコストに見合わない |
+| Phase1範囲 | 操作系(キャプチャ+ビルダー+プリセット+一般タブ) | 全部盛り一気 | 毎日触る割当の痛みから。常駐系(HUD/トレイ/自動起動/列挙)はPhase2 |
+| 自動起動方式 | レジストリRunキー(winreg標準のみ) | スタートアップlnk | lnkはCOM実装が重い。Runキーは標準のみでトグル可 |
+| Win不要置換 | 権限ガイド→AV/SmartScreen案内、反転系は対象外 | Macのまま移植 | SPIは方向を触らない。実機反転報告が出たらHID相当で対応 |

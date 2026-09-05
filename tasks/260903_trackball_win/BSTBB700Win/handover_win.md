@@ -1,9 +1,10 @@
 # 引き継ぎ書 — BSTBB700Win（Win11環境へ）
 
-## 現状（Win環境で仕上げ済み）
+## 現状（Phase1済み・2026-09-04）
 
-- Win環境で起動ブロッカーと未配線を修正。py_compile 8件PASS、ロジック単体テスト17/17 PASS、code_health_check 5/5 PASS
-- 修正点: app.py直接実行(`python app.py`)可、WH_MOUSE_LL/WH_KEYBOARD_LL実配線(注入無視で再帰防止、横取り/素通し)、キーボードトリガー配線(横取り消費)、swap/tilt反映、競合警告と反転トグルとcustom VKのUI追加
+- Win環境で起動ブロッカーと未配線を修正。py_compile 10件PASS、ロジック単体テスト31/31 PASS、code_health_check 5/5 PASS
+- 修正点: app.py直接実行(`python app.py`)可、WH_MOUSE_LL/WH_KEYBOARD_LL実配線(注入無視で再帰防止、横取り/素通し、別スレッドポンプ、縮退起動)、キーボードトリガー配線(横取り消費)、swap/tilt反映、競合警告と反転トグルとcustom VKのUI追加
+- Phase1追加: キャプチャ割当(修飾合成・Esc取消)・ビルダー(修飾4+キー82+プリセット15)・一般タブ(自動起動Run・案内・フォルダ・リセット・0.2.0)・Metis重大3件修正+回帰3件
 - トレイはMVP簡易版(tkinter常駐)のまま。READMEの看板を簡易版に修正済み
 
 ## 構成

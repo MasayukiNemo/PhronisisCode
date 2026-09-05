@@ -95,6 +95,37 @@ MVPクリティカルパス: T1-T2-T3-T4-T7-T8 で最小動作。T5フック実�
 - Athena: 未招集。統合はKaiが担う
 - Yuna/Hayato: トライアングルで回す。Hayato中間軽量チェックを次に実施
 
+## Phase1 リッチ化計画（操作系4点・2026-09-04合意）
+
+背景: Mac版読解で差分9点を確定。Phase1は毎日触る操作系(キャプチャ+ビルダー+プリセット+一般タブ)を先行。常駐系(HUD/トレイ/自動起動実装/デバイス列挙)はPhase2、安全・可視化はPhase3。
+
+タスク分解:
+
+1. [ ] P1-1 core/vktable.py: VK一覧表(英数/F1-F24/方向/編集系/修飾表示)とWinプリセット14種(未割り当て・戻るAlt+Left・進むAlt+Right・コピー・ペースト・カット・取り消し・やり直し・全選択・検索・タブ次・タブ前・F13・F14・F15)。純粋データでMacテスト可
+2. [ ] P1-2 core/autostart.py: レジストリRunキー(HKCU...Run/BSTBB700Win)で自動起動トグル。winreg遅延importでMacではno-op。exeパス解決はsys.executable凍結時とscript時を区別
+3. [ ] P1-3 app.py割当タブ: 各行をキャプチャボタン+ビルダー開閉に作り替え。キャプチャはモーダルダイアログで次キー横取り取得(Esc取消)、修飾はGetKeyState系で同時取得。ビルダーは修飾4チェック+キー選択+プリセット+反映/クリア
+4. [ ] P1-4 app.py一般タブ新設: 自動起動トグル・垂直素通し明記・AV/SmartScreen案内・設定フォルダを開く・設定リセット・バージョン表示
+5. [ ] P1-5 tests/test_phase1.py: プリセットVKが一覧表に存在すること、キャプチャ純粋部の判定、autostartのMac no-op、ビルダー往復
+6. [ ] P1-6 検証: py_compile全件、17+新規PASS、code_health_check 5/5、README/handover/log更新、Hayato最終ゲート
+
+依存: P1-1 -> P1-3 -> P1-5 -> P1-6、P1-2 -> P1-4 -> P1-5
+
+リスク:
+- R1 キャプチャ中のフック競合(通常ルートと奪い合い) → 対策: 切断点はroute_key/route_mouse冒頭の_capturing先行判定の単一箇所。キャプチャ中はroute_keyが全キーを消費(Escは取消・他は記録)し精密・マッピングに流さない
+- R2 修飾キー単体押下の記録ブレ → 対策: 修飾単体はそのキー自体を記録、Escはキャプチャ取消に固定し記録不可。Escの割当はビルダー経由で可としUIに明示
+- R3 Runキーとexeパス(開発時python実行と凍結exeの混同) → 対策: 凍結時のみ登録可、script実行時は無効表示。HKCUは管理者不要、失敗はUI表示、AV誤検知は配布手順に明記
+- R4 反転の整合(一般タブで反転なし vs tilt反転既存) → 対策: tilt swap/invertはデバイス固有として割当タブ既存のまま。一般タブはカーソル/HID方向反転なし(SPIは方向を触らない事実)と明記
+- R5 WinプリセットのMac流写し → 対策: 戻るAlt+Left・進むAlt+Right等Win既定に寄せる。Yuna仮説2の受入
+
+招集判断の記録(Phase1):
+- Hermes: 未招集。WH_KEYBOARD_LL/GetKeyState/winregは公開仕様でKaiが直接確認。呼ばなかった理由: 領域の事実確認が不要
+- Gaia: 未招集。設計案分岐なし。呼ばなかった理由: 創発の種不足なし
+- Artemis: 本Phase1計画で代替
+- Daedalus: 招集。P1-1〜P1-5の実装を担当
+- Metis: 実装後に招集。Hayatoゲート前に品質レビュー
+- Athena: 未招集。統合はKai
+- Yuna/Hayato: トライアングルと中間・最終ゲートで回す
+
 ## 自己検証計画（80%基準）
 
 brief必須6件に対する検証:

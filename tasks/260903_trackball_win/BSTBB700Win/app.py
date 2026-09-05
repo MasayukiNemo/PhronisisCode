@@ -19,6 +19,7 @@ try:
     from core.precise import PreciseController, WinSpeedBackend, is_hold_capable_trigger
     from core.settings import (
         TRIGGER_VK,
+        AppSettings,
         ButtonID,
         KeyCombo,
         PreciseMode,
@@ -33,12 +34,36 @@ except ImportError:  # `python -m BSTBB700Win.app` package mode
     from .core.precise import PreciseController, WinSpeedBackend, is_hold_capable_trigger
     from .core.settings import (
         TRIGGER_VK,
+        AppSettings,
         ButtonID,
         KeyCombo,
         PreciseMode,
         PreciseTrigger,
         SettingsStore,
     )
+
+try:
+    from core.autostart import (
+        is_enabled as autostart_is_enabled,
+    )
+    from core.autostart import (
+        is_frozen as autostart_is_frozen,
+    )
+    from core.autostart import (
+        set_enabled as autostart_set_enabled,
+    )
+    from core.vktable import MODIFIER_VKS, PRESETS, VK_ENTRIES, label_for, modifier_bits
+except ImportError:  # package mode
+    from .core.autostart import (
+        is_enabled as autostart_is_enabled,
+    )
+    from .core.autostart import (
+        is_frozen as autostart_is_frozen,
+    )
+    from .core.autostart import (
+        set_enabled as autostart_set_enabled,
+    )
+    from .core.vktable import MODIFIER_VKS, PRESETS, VK_ENTRIES, label_for, modifier_bits
 
 import tkinter as tk
 from tkinter import ttk
@@ -81,6 +106,9 @@ class App:
             tilt_provider=lambda: bool(self.store.settings.tilt_inverted),
         )
         self.root: tk.Tk | None = None
+        self._capturing: dict | None = None
+        self._capture_result: tuple | None = None
+        self._capture_dialog = None
 
     # Router used by hooks and testable directly
     def route_mouse(self, button: str, is_down: bool) -> str:
@@ -113,6 +141,8 @@ class App:
         return None  # mouse/none triggers are not keyboard-consumable
 
     def route_key(self, vk: int, is_down: bool) -> bool:
+        if self._capturing is not None:
+            return self._handle_capture_key(int(vk), bool(is_down))
         s = self.store.settings
         if not s.precise_enabled:
             return False
@@ -127,6 +157,57 @@ class App:
             self.precise.hold_began(s.precise_scale, s.precise_enabled, s.precise_mode)
         else:
             self.precise.hold_ended(s.precise_mode)
+        return True
+
+    def _live_modifier_bits(self) -> int:
+        """Read Ctrl/Shift/Alt/Win via GetKeyState. Delayed ctypes, Mac-safe (0)."""
+        try:
+            import ctypes
+            user32 = ctypes.windll.user32
+
+            def _down(vk: int) -> bool:
+                try:
+                    return bool(user32.GetKeyState(int(vk)) & 0x8000)
+                except Exception:
+                    return False
+
+            return modifier_bits({
+                "ctrl": _down(162) or _down(163),
+                "shift": _down(160) or _down(161),
+                "alt": _down(164) or _down(165),
+                "win": _down(91) or _down(92),
+            })
+        except Exception:
+            return 0
+
+    def _handle_capture_key(self, vk: int, is_down: bool) -> bool:
+        """Single branch point for capture: Esc cancels, others are recorded.
+
+        Modifier-only keydown is swallowed without recording so that
+        Ctrl+C style combos can be captured (the Ctrl down arrives first).
+        """
+        if not is_down:
+            return True
+        if int(vk) == 27:
+            self._capturing = None
+            self._capture_result = None
+            return True
+        if int(vk) in MODIFIER_VKS:
+            return True
+        mods = self._live_modifier_bits()
+        cap = self._capturing or {}
+        kind = cap.get("kind")
+        button = cap.get("button")
+        self._capture_result = (int(vk), int(mods))
+        self._capturing = None
+        if kind == "map" and button:
+            self.store.set_mapping(button, KeyCombo(vk=int(vk), modifiers=int(mods)))
+        elif kind == "custom":
+            self.store.settings.precise_custom_vk = int(vk)
+            self.store.settings.precise_trigger = PreciseTrigger.CUSTOM_KEY.value
+            self.store.save()
+        self._refresh_rows_safe()
+        self._sync_custom_vk_var()
         return True
 
     def build_ui(self) -> tk.Tk:
@@ -148,14 +229,24 @@ class App:
         f_disc = ttk.Frame(nb)
         nb.add(f_disc, text="Discovery")
         self._build_discovery_tab(f_disc)
+
+        f_gen = ttk.Frame(nb)
+        nb.add(f_gen, text="一般")
+        self._build_general_tab(f_gen)
         return root
 
     def _build_mapping_tab(self, parent) -> None:
         ttk.Label(parent, text="未割り当ては素通し、割り当て時は横取りしてキー送信").pack(anchor="w", padx=8, pady=4)
+        ttk.Label(parent, text="※ Escはキャプチャ不可（押すと取消）。Escの割当はビルダーで割当可",
+                  wraplength=640).pack(anchor="w", padx=8)
         self._conflict_var = tk.StringVar(value=self.store.conflict_message() or "")
         ttk.Label(parent, textvariable=self._conflict_var, foreground="red",
                   wraplength=640).pack(anchor="w", padx=8)
         self._row_vars: dict = {}
+        self._builder_frames: dict = {}
+        self._mod_vars: dict = {}
+        self._key_vars: dict = {}
+        self._preset_vars: dict = {}
         for bid, label in BUTTON_ROWS:
             frame = ttk.Frame(parent)
             frame.pack(fill="x", padx=8, pady=2)
@@ -165,11 +256,13 @@ class App:
             var = tk.StringVar(value=txt)
             ttk.Label(frame, textvariable=var, width=24).pack(side="left")
             self._row_vars[bid] = var
-            ttk.Button(frame, text="F13", command=lambda b=bid: self._assign_preset(b, 124, 0)).pack(side="left", padx=2)
-            ttk.Button(frame, text="Ctrl+C", command=lambda b=bid: self._assign_preset(b, 67, KeyCombo.MOD_CTRL)).pack(side="left", padx=2)
-            ttk.Button(frame, text="Esc", command=lambda b=bid: self._assign_preset(b, 27, 0)).pack(side="left", padx=2)
+            ttk.Button(frame, text="キャプチャ",
+                       command=lambda b=bid: self._start_capture("map", b)).pack(side="left", padx=2)
+            ttk.Button(frame, text="組み立て",
+                       command=lambda b=bid: self._toggle_builder(b)).pack(side="left", padx=2)
             ttk.Button(frame, text="クリア", command=lambda b=bid: self._clear(b)).pack(side="left", padx=2)
-        ttk.Label(parent, text="詳細なキー選択はVK番号で指定: 例 13=Enter 91=Win").pack(anchor="w", padx=8, pady=4)
+            self._build_builder(parent, bid)
+        ttk.Label(parent, text="詳細なキー選択はビルダーで指定（vktable一覧）").pack(anchor="w", padx=8, pady=4)
         s = self.store.settings
         self._swap_var = tk.BooleanVar(value=bool(s.swap_back_forward))
         ttk.Checkbutton(parent, text="進む/戻るを入れ替え (XBUTTON1/2逆転用)",
@@ -188,13 +281,158 @@ class App:
         self.store.settings.tilt_inverted = bool(v)
         self.store.save()
 
-    def _assign_preset(self, bid: str, vk: int, mods: int) -> None:
-        self.store.set_mapping(bid, KeyCombo(vk=vk, modifiers=mods))
-        self._refresh_rows()
-
     def _clear(self, bid: str) -> None:
         self.store.set_mapping(bid, None)
+        self._refresh_rows_safe()
+
+    def _vk_display(self, vk: int) -> str:
+        return f"{label_for(vk)} (VK{vk})"
+
+    def _build_builder(self, parent, bid: str) -> None:
+        box = ttk.Frame(parent)
+        mods = {
+            "ctrl": tk.BooleanVar(value=False),
+            "shift": tk.BooleanVar(value=False),
+            "alt": tk.BooleanVar(value=False),
+            "win": tk.BooleanVar(value=False),
+        }
+        self._mod_vars[bid] = mods
+        row = ttk.Frame(box)
+        row.pack(fill="x", padx=4)
+        for key, text in (("ctrl", "Ctrl"), ("shift", "Shift"), ("alt", "Alt"), ("win", "Win")):
+            ttk.Checkbutton(row, text=text, variable=mods[key]).pack(side="left")
+        key_var = tk.StringVar(value=self._vk_display(VK_ENTRIES[0][0]) if VK_ENTRIES else "")
+        ttk.Combobox(box, textvariable=key_var,
+                     values=[self._vk_display(vk) for vk, _label, _group in VK_ENTRIES],
+                     state="readonly", width=28).pack(anchor="w", padx=4)
+        self._key_vars[bid] = key_var
+        preset_var = tk.StringVar(value=PRESETS[0][0] if PRESETS else "")
+        pcombo = ttk.Combobox(box, textvariable=preset_var,
+                              values=[name for name, _vk, _mods in PRESETS],
+                              state="readonly", width=28)
+        pcombo.pack(anchor="w", padx=4)
+        pcombo.bind("<<ComboboxSelected>>", lambda _e, b=bid: self._apply_preset_to_builder(b))
+        self._preset_vars[bid] = preset_var
+        ttk.Button(box, text="反映", command=lambda b=bid: self._apply_builder(b)).pack(anchor="w", padx=4, pady=2)
+        self._builder_frames[bid] = box
+
+    def _toggle_builder(self, bid: str) -> None:
+        box = self._builder_frames.get(bid)
+        if box is None:
+            return
+        try:
+            if box.winfo_manager():
+                box.pack_forget()
+            else:
+                box.pack(fill="x", padx=24, pady=2)
+        except Exception:
+            pass
+
+    def _apply_preset_to_builder(self, bid: str) -> None:
+        name = self._preset_vars[bid].get()
+        for pname, pvk, pmods in PRESETS:
+            if pname != name:
+                continue
+            if pvk is None:
+                # 「未割り当て」選択はビルダー転記ではなくクリア扱いと明示
+                self._clear(bid)
+                return
+            self._mod_vars[bid]["ctrl"].set(bool(pmods & KeyCombo.MOD_CTRL))
+            self._mod_vars[bid]["shift"].set(bool(pmods & KeyCombo.MOD_SHIFT))
+            self._mod_vars[bid]["alt"].set(bool(pmods & KeyCombo.MOD_ALT))
+            self._mod_vars[bid]["win"].set(bool(pmods & KeyCombo.MOD_WIN))
+            if pvk is not None:
+                self._key_vars[bid].set(self._vk_display(pvk))
+            break
+
+    def _apply_builder(self, bid: str) -> None:
+        disp = self._key_vars[bid].get()
+        vk: int | None = None
+        if "(VK" in disp and disp.endswith(")"):
+            try:
+                vk = int(disp.rsplit("(VK", 1)[1][:-1])
+            except Exception:
+                vk = None
+        if vk is None:
+            for v, lab, _group in VK_ENTRIES:
+                if lab == disp:
+                    vk = v
+                    break
+        if vk is None:
+            return
+        mods = 0
+        if self._mod_vars[bid]["ctrl"].get():
+            mods |= KeyCombo.MOD_CTRL
+        if self._mod_vars[bid]["shift"].get():
+            mods |= KeyCombo.MOD_SHIFT
+        if self._mod_vars[bid]["alt"].get():
+            mods |= KeyCombo.MOD_ALT
+        if self._mod_vars[bid]["win"].get():
+            mods |= KeyCombo.MOD_WIN
+        self.store.set_mapping(bid, KeyCombo(vk=int(vk), modifiers=int(mods)))
         self._refresh_rows()
+
+    CAPTURE_POLL_MS = 120
+
+    def _close_capture_dialog(self) -> None:
+        """キャプチャダイアログの後片付け集約点。状態(_capturing)は触らない。"""
+        dlg, self._capture_dialog = self._capture_dialog, None
+        if dlg is None:
+            return
+        try:
+            dlg.grab_release()
+        except Exception:
+            pass
+        try:
+            dlg.destroy()
+        except Exception:
+            pass
+
+    def _start_capture(self, kind: str, button: str | None = None) -> None:
+        self._close_capture_dialog()  # 多重起動時は既存を先に片付ける
+        self._capturing = {"kind": kind, "button": button}
+        self._capture_result = None
+        if self.root is None:
+            return
+        try:
+            dlg = tk.Toplevel(self.root)
+        except Exception:
+            self._capturing = None  # 生成失敗時は残留させない
+            return
+        self._capture_dialog = dlg
+        dlg.title("キーキャプチャ")
+        try:
+            dlg.transient(self.root)
+            dlg.grab_set()
+        except Exception:
+            pass
+        ttk.Label(dlg, text="押したキーを取得中…Escで取消").pack(padx=16, pady=8)
+        ttk.Label(dlg, text="※ 修飾は同時押しで合成（Ctrl+C可）。Esc自体は記録不可。Escの割当はビルダーで行う").pack(padx=16)
+        ttk.Button(dlg, text="取消", command=self._cancel_capture).pack(pady=8)
+        try:
+            dlg.protocol("WM_DELETE_WINDOW", self._cancel_capture)
+        except Exception:
+            pass
+        self._poll_capture_dialog(dlg)
+
+    def _cancel_capture(self) -> None:
+        self._capturing = None
+        self._capture_result = None
+        self._close_capture_dialog()
+        self._refresh_rows_safe()
+
+    def _poll_capture_dialog(self, dlg) -> None:
+        """終了検知後のdestroy専用。取消・確定の後片付けは_close_capture_dialog側。"""
+        try:
+            if self._capturing is not None and dlg.winfo_exists():
+                dlg.after(self.CAPTURE_POLL_MS, lambda: self._poll_capture_dialog(dlg))
+                return
+        except Exception:
+            pass
+        if getattr(self, "_capture_dialog", None) is dlg:
+            self._close_capture_dialog()
+        self._refresh_rows_safe()
+        self._sync_custom_vk_var()
 
     def _refresh_rows(self) -> None:
         for bid, _ in BUTTON_ROWS:
@@ -202,6 +440,22 @@ class App:
             self._row_vars[bid].set(cur.readable() if cur else "未割り当て")
         if hasattr(self, "_conflict_var"):
             self._conflict_var.set(self.store.conflict_message() or "")
+
+    def _refresh_rows_safe(self) -> None:
+        if getattr(self, "_row_vars", None) is None:
+            return
+        if self.root is None:
+            return  # headlessではUI更新不要
+        self._refresh_rows()
+
+    def _sync_custom_vk_var(self) -> None:
+        var = getattr(self, "_custom_vk_var", None)
+        if var is None:
+            return
+        try:
+            var.set(str(self.store.settings.precise_custom_vk))
+        except Exception:
+            pass  # UI反映失敗に限定して吸収
 
     def _build_precise_tab(self, parent) -> None:
         s = self.store.settings
@@ -216,9 +470,12 @@ class App:
         combo.bind("<<ComboboxSelected>>", lambda _e: self._set_trigger(trig_var.get()))
         ttk.Label(parent, text="customKey用VK (例 124=F13, 20=CapsLock)").pack(anchor="w", padx=8, pady=(6, 0))
         custom_var = tk.StringVar(value=str(s.precise_custom_vk))
+        self._custom_vk_var = custom_var
         ttk.Entry(parent, textvariable=custom_var, width=12).pack(anchor="w", padx=8)
         ttk.Button(parent, text="custom VK適用",
                    command=lambda: self._set_custom_vk(custom_var.get())).pack(anchor="w", padx=8, pady=2)
+        ttk.Button(parent, text="キャプチャで設定",
+                   command=lambda: self._start_capture("custom")).pack(anchor="w", padx=8, pady=2)
         ttk.Label(parent, text=f"スケール: {int(s.precise_scale*100)}% (10-100)").pack(anchor="w", padx=8)
         scale_var = tk.DoubleVar(value=s.precise_scale * 100)
         ttk.Scale(parent, from_=10, to=100, variable=scale_var, orient="horizontal",
@@ -257,6 +514,7 @@ class App:
                 pass
 
     def _set_custom_vk(self, v: str) -> None:
+        """custom VK手入力。キャプチャ時と揃え、triggerもcustomKeyへ切替える。"""
         try:
             vk = int(str(v).strip())
         except Exception:
@@ -264,6 +522,7 @@ class App:
         if not 1 <= vk <= 255:
             return
         self.store.settings.precise_custom_vk = vk
+        self.store.settings.precise_trigger = PreciseTrigger.CUSTOM_KEY.value
         self.store.save()
 
     def _set_scale(self, v: float) -> None:
@@ -303,6 +562,111 @@ class App:
         except Exception:
             pass
         self._refresh_disc()
+
+    def _build_general_tab(self, parent) -> None:
+        ttk.Label(parent, text="BSTBB700Win 0.2.0 (Phase1)").pack(anchor="w", padx=8, pady=4)
+        try:
+            auto_on = bool(autostart_is_enabled())
+        except Exception:
+            auto_on = False
+        try:
+            frozen = bool(autostart_is_frozen())
+        except Exception:
+            frozen = False
+        self._autostart_var = tk.BooleanVar(value=auto_on)
+        self._autostart_msg = tk.StringVar(value="")
+        auto_cb = ttk.Checkbutton(parent, text="Windows起動時に自動起動（レジストリRun）",
+                                  variable=self._autostart_var,
+                                  command=lambda: self._toggle_autostart())
+        auto_cb.pack(anchor="w", padx=8)
+        if not frozen:
+            try:
+                auto_cb.configure(state="disabled")
+            except Exception:
+                pass
+            ttk.Label(parent, text="開発実行中は登録不可（凍結exeのみ登録可）").pack(anchor="w", padx=8)
+        elif os.name != "nt":
+            try:
+                auto_cb.configure(state="disabled")
+            except Exception:
+                pass
+            ttk.Label(parent, text="Windows以外では自動起動に未対応").pack(anchor="w", padx=8)
+        ttk.Label(parent, textvariable=self._autostart_msg, wraplength=640).pack(anchor="w", padx=8)
+        ttk.Label(parent, text="垂直ホイールは素通し（カスタム対象外）。水平チルトのみ割当対象。",
+                  wraplength=640).pack(anchor="w", padx=8, pady=4)
+        ttk.Label(parent, text="AV/SmartScreen案内: フック+SendInputのため誤検知時は除外設定を行うこと。"
+                  "署名なしMVPのためSmartScreen警告時は「詳細情報→実行」。",
+                  wraplength=640).pack(anchor="w", padx=8, pady=4)
+        ttk.Button(parent, text="設定フォルダを開く",
+                   command=self._open_settings_folder).pack(anchor="w", padx=8, pady=2)
+        ttk.Button(parent, text="設定リセット",
+                   command=self._reset_settings).pack(anchor="w", padx=8, pady=2)
+        self._general_msg = tk.StringVar(value="")
+        ttk.Label(parent, textvariable=self._general_msg, wraplength=640).pack(anchor="w", padx=8)
+
+    def _toggle_autostart(self) -> None:
+        try:
+            ok, msg = autostart_set_enabled(bool(self._autostart_var.get()))
+        except Exception as e:
+            ok, msg = False, str(e)
+        try:
+            self._autostart_msg.set(msg)
+            self._autostart_var.set(bool(autostart_is_enabled()))
+        except Exception:
+            pass
+
+    def _open_settings_folder(self) -> None:
+        try:
+            folder = str(self.store.path.parent)
+            if os.name == "nt":
+                os.startfile(folder)  # noqa: PGH121 - Windows-only, guarded
+            else:
+                self._general_msg.set(f"設定: {self.store.path}")
+        except Exception as e:
+            try:
+                self._general_msg.set(f"フォルダを開けない: {e}")
+            except Exception:
+                pass
+
+    def _reset_settings(self) -> None:
+        try:
+            from tkinter import messagebox
+            if self.root is not None:
+                if not messagebox.askyesno("確認", "全割当と精密設定を初期化します。よろしいですか。"):
+                    return
+        except Exception:
+            pass
+        try:
+            self.precise.restore()
+        except Exception:
+            pass
+        ok = False
+        try:
+            try:
+                self.store.path.unlink()
+            except Exception:
+                pass
+            self.store.settings = AppSettings()
+            self.store.save()
+            ok = bool(self.store.path.exists())
+        except Exception:
+            ok = False
+        self._refresh_rows_safe()
+        try:
+            if hasattr(self, "_status_var"):
+                self._status_var.set("精密 OFF")
+        except Exception:
+            pass
+        try:
+            if hasattr(self, "_swap_var"):
+                self._swap_var.set(bool(self.store.settings.swap_back_forward))
+            if hasattr(self, "_tilt_var"):
+                self._tilt_var.set(bool(self.store.settings.tilt_inverted))
+            if hasattr(self, "_autostart_var"):
+                self._autostart_var.set(bool(autostart_is_enabled()))
+            self._general_msg.set("設定をリセットした" if ok else "リセットに失敗した")
+        except Exception:
+            pass
 
     def run(self) -> None:
         root = self.build_ui()
