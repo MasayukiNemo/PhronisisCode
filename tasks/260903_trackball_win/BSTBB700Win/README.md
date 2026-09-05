@@ -1,6 +1,7 @@
 # BSTBB700Win — Windows 11用トラックボールカスタマイザー
 
 Windows 11 / Python 3.11+ / 標準ライブラリ+ctypesのみ。外部pip不要で実行可。
+使い方は MANUAL.md を見ること。
 
 ## 機能（Phase1）
 
