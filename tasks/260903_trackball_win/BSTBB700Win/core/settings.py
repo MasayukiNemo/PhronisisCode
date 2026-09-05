@@ -23,6 +23,7 @@ class PreciseTrigger(str, Enum):
     F15 = "f15"
     CAPSLOCK = "capsLock"
     MOUSE_FORWARD = "mouseForward"
+    MOUSE_BACK = "mouseBack"
     MOUSE_CENTER = "mouseCenter"
     MOUSE_TILT_RIGHT = "mouseTiltRight"
     MOUSE_TILT_LEFT = "mouseTiltLeft"
@@ -38,6 +39,7 @@ class PreciseTrigger(str, Enum):
             "f15": "F15キー",
             "capsLock": "CapsLockキー",
             "mouseForward": "進むボタン",
+            "mouseBack": "戻るボタン",
             "mouseCenter": "中央ボタン",
             "mouseTiltRight": "チルト右",
             "mouseTiltLeft": "チルト左",
@@ -119,6 +121,7 @@ class AppSettings:
     debug_log_enabled: bool = False
     precise_was_active: bool = False
     normal_speed: int = 10
+    hud_enabled: bool = True
 
     def to_json_dict(self) -> dict:
         return {
@@ -134,6 +137,7 @@ class AppSettings:
             "debugLogEnabled": self.debug_log_enabled,
             "preciseWasActive": self.precise_was_active,
             "normalSpeed": self.normal_speed,
+            "hudEnabled": self.hud_enabled,
         }
 
     @staticmethod
@@ -169,6 +173,7 @@ class AppSettings:
         except Exception:
             s.normal_speed = 10
         s.normal_speed = min(max(s.normal_speed, 1), 20)
+        s.hud_enabled = bool(d.get("hudEnabled", True))
         return s
 
 
@@ -222,6 +227,8 @@ class SettingsStore:
         t = self.settings.precise_trigger
         if t == PreciseTrigger.MOUSE_FORWARD.value and button == ButtonID.FORWARD.value:
             return True
+        if t == PreciseTrigger.MOUSE_BACK.value and button == ButtonID.BACK.value:
+            return True
         if t == PreciseTrigger.MOUSE_CENTER.value and button == ButtonID.CENTER.value:
             return True
         if t == PreciseTrigger.MOUSE_TILT_RIGHT.value and button == ButtonID.TILT_RIGHT.value:
@@ -240,6 +247,8 @@ class SettingsStore:
         m = self.settings.mappings
         if t == PreciseTrigger.MOUSE_FORWARD.value and ButtonID.FORWARD.value in m:
             return "進むボタンが精密トリガーに使われているため、キー割り当てと排他です。"
+        if t == PreciseTrigger.MOUSE_BACK.value and ButtonID.BACK.value in m:
+            return "戻るボタンが精密トリガーに使われているため、キー割り当てと排他です。"
         if t == PreciseTrigger.MOUSE_CENTER.value and ButtonID.CENTER.value in m:
             return "中央ボタンが精密トリガーに使われているため、キー割り当てと排他です。"
         if t == PreciseTrigger.MOUSE_TILT_RIGHT.value and ButtonID.TILT_RIGHT.value in m:

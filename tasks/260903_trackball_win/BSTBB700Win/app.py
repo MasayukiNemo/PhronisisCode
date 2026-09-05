@@ -95,7 +95,7 @@ BUTTON_ROWS = [
 
 TRIGGER_CHOICES = [
     "f13", "f14", "f15", "capsLock", "customKey",
-    "mouseForward", "mouseCenter",
+    "mouseForward", "mouseBack", "mouseCenter",
     "mouseTiltLeft", "mouseTiltRight", "mouseTiltEither",
 ]
 
@@ -106,7 +106,7 @@ SCALE_PRESETS = (10, 25, 50, 100)
 
 TILT_SUPPRESS_S = 0.3
 
-APP_VERSION = "0.2.3"
+APP_VERSION = "0.2.4"
 
 
 class App:
@@ -237,7 +237,8 @@ class App:
     def _apply_ui_event(self, kind: str, payload: dict) -> None:
         if kind == "precise":
             try:
-                self.hud.flash(bool(payload.get("active")), float(payload.get("scale", 0.25)))
+                if bool(self.store.settings.hud_enabled):
+                    self.hud.flash(bool(payload.get("active")), float(payload.get("scale", 0.25)))
             except Exception:
                 pass
             self._sync_tray_precise()
@@ -729,10 +730,18 @@ class App:
         self._status_var = tk.StringVar(value="精密 ON" if self.precise.is_active else "精密 OFF")
         ttk.Label(parent, textvariable=self._status_var).pack(anchor="w", padx=8, pady=4)
         ttk.Button(parent, text="ON/OFF切替", command=lambda: self._toggle_precise()).pack(anchor="w", padx=8)
+        hud_var = tk.BooleanVar(value=bool(s.hud_enabled))
+        ttk.Checkbutton(parent, text="切替時にHUD表示する",
+                        variable=hud_var,
+                        command=lambda: self._set_hud_enabled(hud_var.get())).pack(anchor="w", padx=8)
         ttk.Label(parent, text="注意: MVPはグローバル減速。全マウスとタッチパッドが減速します。").pack(anchor="w", padx=8, pady=4)
 
     def _set_precise_enabled(self, v: bool) -> None:
         self.store.settings.precise_enabled = bool(v)
+        self.store.save()
+
+    def _set_hud_enabled(self, v: bool) -> None:
+        self.store.settings.hud_enabled = bool(v)
         self.store.save()
 
     def _set_trigger(self, v: str) -> None:
@@ -828,8 +837,9 @@ class App:
     def _flash_hud_direct(self) -> None:
         # UIスレッド専用。フックスレッドからは _notify_precise_changed を使う。
         try:
-            s = self.store.settings
-            self.hud.flash(bool(self.precise.is_active), float(s.precise_scale))
+            if bool(self.store.settings.hud_enabled):
+                s = self.store.settings
+                self.hud.flash(bool(self.precise.is_active), float(s.precise_scale))
         except Exception:
             pass
         self._sync_tray_precise()

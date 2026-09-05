@@ -178,6 +178,7 @@ class PreciseController:
         from .settings import ButtonID
         mapping = {
             PreciseTrigger.MOUSE_FORWARD.value: [ButtonID.FORWARD.value],
+            PreciseTrigger.MOUSE_BACK.value: [ButtonID.BACK.value],
             PreciseTrigger.MOUSE_CENTER.value: [ButtonID.CENTER.value],
             PreciseTrigger.MOUSE_TILT_RIGHT.value: [ButtonID.TILT_RIGHT.value],
             PreciseTrigger.MOUSE_TILT_LEFT.value: [ButtonID.TILT_LEFT.value],

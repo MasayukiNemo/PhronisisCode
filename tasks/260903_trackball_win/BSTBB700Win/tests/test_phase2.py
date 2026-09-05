@@ -306,6 +306,48 @@ def test_hook_status_text():
     assert a._hook_status_text() in ("フック動作中", "フック停止中")
 
 
+def test_back_trigger_consuming_conflict_hold():
+    from core.precise import is_hold_capable_trigger
+
+    a = _fresh_app()
+    a.store.settings.precise_trigger = "mouseBack"
+    assert a.store.is_precise_trigger_consuming("back") is True
+    assert a.store.is_precise_trigger_consuming("forward") is False
+    assert a.store.conflict_message() is None
+    a.store.set_mapping("back", KeyCombo(vk=67, modifiers=KeyCombo.MOD_CTRL))
+    assert a.store.conflict_message() is not None
+    assert a.route_mouse("back", True) == "precise"
+    assert is_hold_capable_trigger("mouseBack") is True
+    a.store.settings.precise_mode = "hold"
+    assert a.route_mouse("back", True) == "precise"
+    assert a.precise.is_active is True
+    assert a.route_mouse("back", False) == "precise"
+    assert a.precise.is_active is False
+
+
+def test_hud_toggle_gates_flash():
+    a = _fresh_app()
+
+    class _Hud:
+        def __init__(self):
+            self.calls = []
+
+        def flash(self, active, scale):
+            self.calls.append((active, scale))
+
+    a.hud = _Hud()
+    a.store.settings.precise_trigger = "f13"
+    a.store.settings.precise_mode = "toggle"
+    a.store.settings.hud_enabled = True
+    assert a.route_key(124, True) is True
+    a._drain_ui_queue()
+    assert a.hud.calls, "HUD should flash when enabled"
+    a.store.settings.hud_enabled = False
+    assert a.route_key(124, True) is True
+    a._drain_ui_queue()
+    assert len(a.hud.calls) == 1, "HUD must stay silent when disabled"
+
+
 def test_trigger_display_roundtrip():
     from core.settings import PreciseTrigger
 
