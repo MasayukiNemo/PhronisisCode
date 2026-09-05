@@ -538,7 +538,7 @@ class App:
             pass
         ttk.Label(dlg, text="押したキーを取得中…Escで取消").pack(padx=16, pady=8)
         ttk.Label(dlg, text="※ 修飾は同時押しで合成（Ctrl+C可）。Esc自体は記録不可。Escの割当はビルダーで行う").pack(padx=16)
-        ttk.Button(dlg, text="取消", command=self._cancel_capture).pack(pady=8)
+        ttk.Button(dlg, text="取消", command=self._cancel_capture, takefocus=False).pack(pady=8)
         try:
             dlg.protocol("WM_DELETE_WINDOW", self._cancel_capture)
         except Exception:
@@ -546,8 +546,10 @@ class App:
         self._poll_capture_dialog(dlg)
 
     def _cancel_capture(self) -> None:
-        self._capturing = None
-        self._capture_result = None
+        # 記録済み（Enter/Spaceで確定後に取消ボタンが誤発火）の場合は結果を守る
+        if self._capturing is not None:
+            self._capturing = None
+            self._capture_result = None
         self._close_capture_dialog()
         self._refresh_rows_safe()
 

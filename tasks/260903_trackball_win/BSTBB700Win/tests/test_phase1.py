@@ -95,6 +95,25 @@ def test_capture_esc_cancels():
     assert a.store.mapping_for("back") is None
 
 
+def test_cancel_after_record_keeps_result():
+    a = _fresh_app()
+    a._capturing = {"kind": "map", "button": "back"}
+    assert a.route_key(13, True) is True  # Enter recorded
+    assert a._capturing is None
+    a._cancel_capture()  # stray Cancel activation must not wipe Enter
+    cur = a.store.mapping_for("back")
+    assert cur is not None and cur.vk == 13
+
+
+def test_cancel_while_capturing_clears():
+    a = _fresh_app()
+    a._capturing = {"kind": "map", "button": "back"}
+    a._cancel_capture()
+    assert a._capturing is None
+    assert a._capture_result is None
+    assert a.store.mapping_for("back") is None
+
+
 def test_capture_modifier_waits_for_combo():
     a = _fresh_app()
     a._capturing = {"kind": "map", "button": "back"}
