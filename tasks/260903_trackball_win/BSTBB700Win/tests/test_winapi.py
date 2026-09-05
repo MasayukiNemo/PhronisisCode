@@ -14,7 +14,6 @@ _USER32_FNS = [
     "TrackPopupMenu", "LoadIconW", "RegisterClassW", "GetMessageW",
 ]
 _SHELL32_FNS = ["Shell_NotifyIconW"]
-_GDI32_FNS = ["StretchBlt"]
 
 
 def test_winapi_import_safe():
@@ -33,10 +32,6 @@ def test_winapi_prototypes_typed():
         assert fn.restype is not None, name
     for name in _SHELL32_FNS:
         fn = getattr(winapi.shell32, name)
-        assert fn.argtypes is not None, name
-        assert fn.restype is not None, name
-    for name in _GDI32_FNS:
-        fn = getattr(winapi.gdi32, name)
         assert fn.argtypes is not None, name
         assert fn.restype is not None, name
 

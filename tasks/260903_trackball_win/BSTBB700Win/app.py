@@ -19,7 +19,6 @@ try:
     from core.precise import PreciseController, WinSpeedBackend, is_hold_capable_trigger
     from core.safety import EscTracker, is_from_touch, should_suppress_tilt
     from core.hud import HudController
-    from core.magnifier import MAG_INTERVAL_MS, ZOOM_CHOICES, MagnifierController
     from core.tray import TrayController
     from core.settings import (
         TRIGGER_VK,
@@ -38,7 +37,6 @@ except ImportError:  # `python -m BSTBB700Win.app` package mode
     from .core.precise import PreciseController, WinSpeedBackend, is_hold_capable_trigger
     from .core.safety import EscTracker, is_from_touch, should_suppress_tilt
     from .core.hud import HudController
-    from .core.magnifier import MAG_INTERVAL_MS, ZOOM_CHOICES, MagnifierController
     from .core.tray import TrayController
     from .core.settings import (
         TRIGGER_VK,
@@ -108,7 +106,7 @@ SCALE_PRESETS = (10, 25, 50, 100)
 
 TILT_SUPPRESS_S = 0.3
 
-APP_VERSION = "0.2.8"
+APP_VERSION = "0.2.9"
 
 
 class App:
@@ -136,8 +134,6 @@ class App:
         )
         self.hud = HudController()
         self.tray = TrayController()
-        self.magnifier = MagnifierController(
-            settings_provider=lambda: self.store.settings)
         self.esc = EscTracker()
         self._last_tilt_monotonic: float | None = None
         self._disable_flag_checked_at: float = 0.0
@@ -738,24 +734,6 @@ class App:
         ttk.Checkbutton(parent, text="切替時にHUD表示する",
                         variable=hud_var,
                         command=lambda: self._set_hud_enabled(hud_var.get())).pack(anchor="w", padx=8)
-        mag_var = tk.BooleanVar(value=bool(s.magnifier_enabled))
-        ttk.Checkbutton(parent, text="精密ON中に拡大鏡を表示する（カーソル右斜め上）",
-                        variable=mag_var,
-                        command=lambda: self._set_magnifier_enabled(mag_var.get())).pack(anchor="w", padx=8)
-        ttk.Label(parent, text="拡大鏡の倍率").pack(anchor="w", padx=8)
-        zoom_var = tk.StringVar(value=f"{int(s.magnifier_zoom)}倍")
-        zoom_combo = ttk.Combobox(parent, textvariable=zoom_var,
-                                  values=[f"{z}倍" for z in ZOOM_CHOICES],
-                                  state="readonly", width=10)
-        zoom_combo.pack(anchor="w", padx=8)
-        zoom_combo.bind("<<ComboboxSelected>>",
-                        lambda _e: self._set_magnifier_zoom(zoom_var.get()))
-        ttk.Label(parent, text="拡大鏡の大きさ").pack(anchor="w", padx=8)
-        self._mag_size_var = tk.DoubleVar(value=float(s.magnifier_size))
-        ttk.Scale(parent, from_=48, to=480, variable=self._mag_size_var, orient="horizontal",
-                  command=lambda *_: self._set_magnifier_size(float(self._mag_size_var.get()))).pack(fill="x", padx=8)
-        self._mag_status_var = tk.StringVar(value="拡大鏡: 停止中")
-        ttk.Label(parent, textvariable=self._mag_status_var, wraplength=640).pack(anchor="w", padx=8)
         ttk.Label(parent, text="注意: MVPはグローバル減速。全マウスとタッチパッドが減速します。").pack(anchor="w", padx=8, pady=4)
 
     def _set_precise_enabled(self, v: bool) -> None:
@@ -764,28 +742,6 @@ class App:
 
     def _set_hud_enabled(self, v: bool) -> None:
         self.store.settings.hud_enabled = bool(v)
-        self.store.save()
-
-    def _set_magnifier_enabled(self, v: bool) -> None:
-        self.store.settings.magnifier_enabled = bool(v)
-        self.store.save()
-
-    def _set_magnifier_zoom(self, v: str) -> None:
-        try:
-            z = int(str(v).replace("倍", "").strip())
-        except Exception:
-            return
-        if z not in ZOOM_CHOICES:
-            return
-        self.store.settings.magnifier_zoom = z
-        self.store.save()
-
-    def _set_magnifier_size(self, v: float) -> None:
-        try:
-            size = int(round(float(v)))
-        except Exception:
-            return
-        self.store.settings.magnifier_size = min(max(size, 48), 480)
         self.store.save()
 
     def _set_trigger(self, v: str) -> None:
@@ -1145,25 +1101,6 @@ class App:
         except Exception:
             pass
 
-    def _mag_tick(self) -> None:
-        """UIスレッド専用。精密ON中のみ拡大鏡を追従表示する。"""
-        try:
-            self.magnifier.tick(self.root, bool(self.precise.is_active))
-        except Exception:
-            pass
-        try:
-            var = getattr(self, "_mag_status_var", None)
-            if var is not None:
-                var.set(self.magnifier.status_text())
-        except Exception:
-            pass
-        finally:
-            try:
-                if self.root is not None:
-                    self.root.after(MAG_INTERVAL_MS, self._mag_tick)
-            except Exception:
-                pass
-
     def hook_error_text(self) -> str:
         try:
             detail = (getattr(self.hooks, "last_error", None) or "").strip()
@@ -1188,10 +1125,6 @@ class App:
         root = self.build_ui()
         try:
             root.after(100, self._drain_ui_queue)
-        except Exception:
-            pass
-        try:
-            root.after(MAG_INTERVAL_MS, self._mag_tick)
         except Exception:
             pass
         try:

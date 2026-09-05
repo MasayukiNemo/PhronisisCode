@@ -20,7 +20,6 @@ if IS_WINDOWS:
     _user32 = ctypes.WinDLL("user32", use_last_error=True)
     _kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
     _shell32 = ctypes.WinDLL("shell32", use_last_error=True)
-    _gdi32 = ctypes.WinDLL("gdi32", use_last_error=True)
     try:
         _shcore = ctypes.WinDLL("shcore", use_last_error=True)
     except Exception:
@@ -105,28 +104,6 @@ if IS_WINDOWS:
     _shell32.Shell_NotifyIconW.argtypes = (wintypes.DWORD, ctypes.c_void_p)
     _shell32.Shell_NotifyIconW.restype = wintypes.BOOL
 
-    # ---- magnifier (screen capture blit; StretchBlt lives in gdi32) ----
-    _user32.GetDC.argtypes = (wintypes.HWND,)
-    _user32.GetDC.restype = wintypes.HANDLE
-    _user32.ReleaseDC.argtypes = (wintypes.HWND, wintypes.HANDLE)
-    _user32.ReleaseDC.restype = ctypes.c_int
-    _user32.GetCursorPos.argtypes = (ctypes.c_void_p,)
-    _user32.GetCursorPos.restype = wintypes.BOOL
-    _gdi32.StretchBlt.argtypes = (
-        wintypes.HANDLE, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
-        wintypes.HANDLE, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
-        wintypes.DWORD)
-    _gdi32.StretchBlt.restype = wintypes.BOOL
-    _gdi32.CreateEllipticRgn.argtypes = (
-        ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int)
-    _gdi32.CreateEllipticRgn.restype = wintypes.HANDLE
-    _gdi32.DeleteObject.argtypes = (wintypes.HANDLE,)
-    _gdi32.DeleteObject.restype = wintypes.BOOL
-    _user32.SetWindowRgn.argtypes = (wintypes.HWND, wintypes.HANDLE,
-                                     wintypes.BOOL)
-    _user32.SetWindowRgn.restype = ctypes.c_int
-    _user32.GetSystemMetrics.argtypes = (ctypes.c_int,)
-    _user32.GetSystemMetrics.restype = ctypes.c_int
     _user32.SetProcessDPIAware.argtypes = ()
     _user32.SetProcessDPIAware.restype = wintypes.BOOL
     if _shcore is not None:
@@ -139,7 +116,6 @@ if IS_WINDOWS:
     user32 = _user32
     kernel32 = _kernel32
     shell32 = _shell32
-    gdi32 = _gdi32
     shcore = _shcore
 else:
     HOOKPROC = None  # type: ignore[assignment]
@@ -147,14 +123,7 @@ else:
     user32 = None  # type: ignore[assignment]
     kernel32 = None  # type: ignore[assignment]
     shell32 = None  # type: ignore[assignment]
-    gdi32 = None  # type: ignore[assignment]
     shcore = None  # type: ignore[assignment]
-
-
-SM_XVIRTUALSCREEN = 76
-SM_YVIRTUALSCREEN = 77
-SM_CXVIRTUALSCREEN = 78
-SM_CYVIRTUALSCREEN = 79
 
 
 def enable_dpi_awareness() -> str:
