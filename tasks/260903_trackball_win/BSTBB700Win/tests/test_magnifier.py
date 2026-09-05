@@ -9,6 +9,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import app as appmod
 from core.magnifier import (DEFAULT_SIZE, DEFAULT_ZOOM, MAG_INTERVAL_MS,
                             MagnifierController, compute_layout,
+                            default_offset, fallback_bounds,
                             geometry_string)
 from core.settings import SettingsStore
 
@@ -74,9 +75,22 @@ def test_setters_clamp():
     a._set_magnifier_size(1000)
     assert a.store.settings.magnifier_size == 480
     a._set_magnifier_size(50)
-    assert a.store.settings.magnifier_size == 80
+    assert a.store.settings.magnifier_size == 50
+    a._set_magnifier_size(10)
+    assert a.store.settings.magnifier_size == 48
     assert MAG_INTERVAL_MS == 100
-    assert DEFAULT_SIZE == 160 and DEFAULT_ZOOM == 2
+    assert DEFAULT_SIZE == 128 and DEFAULT_ZOOM == 2
+
+
+def test_default_offset_and_fallback():
+    assert default_offset(480) == 160
+    assert default_offset(128) == 42
+    assert default_offset(48) == 40
+    ox, oy, vw, vh = fallback_bounds(2500, 500)
+    assert ox <= 2500 <= ox + vw
+    assert oy <= 500 <= oy + vh
+    ox, oy, vw, vh = fallback_bounds(-500, -300)
+    assert ox <= -500 and oy <= -300
 
 
 def test_layout_virtual_origin():

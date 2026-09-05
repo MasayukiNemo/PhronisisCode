@@ -108,7 +108,7 @@ SCALE_PRESETS = (10, 25, 50, 100)
 
 TILT_SUPPRESS_S = 0.3
 
-APP_VERSION = "0.2.7"
+APP_VERSION = "0.2.8"
 
 
 class App:
@@ -752,7 +752,7 @@ class App:
                         lambda _e: self._set_magnifier_zoom(zoom_var.get()))
         ttk.Label(parent, text="拡大鏡の大きさ").pack(anchor="w", padx=8)
         self._mag_size_var = tk.DoubleVar(value=float(s.magnifier_size))
-        ttk.Scale(parent, from_=80, to=480, variable=self._mag_size_var, orient="horizontal",
+        ttk.Scale(parent, from_=48, to=480, variable=self._mag_size_var, orient="horizontal",
                   command=lambda *_: self._set_magnifier_size(float(self._mag_size_var.get()))).pack(fill="x", padx=8)
         self._mag_status_var = tk.StringVar(value="拡大鏡: 停止中")
         ttk.Label(parent, textvariable=self._mag_status_var, wraplength=640).pack(anchor="w", padx=8)
@@ -785,7 +785,7 @@ class App:
             size = int(round(float(v)))
         except Exception:
             return
-        self.store.settings.magnifier_size = min(max(size, 80), 480)
+        self.store.settings.magnifier_size = min(max(size, 48), 480)
         self.store.save()
 
     def _set_trigger(self, v: str) -> None:

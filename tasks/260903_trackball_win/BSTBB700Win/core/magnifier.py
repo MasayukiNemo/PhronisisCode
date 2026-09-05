@@ -9,11 +9,31 @@ from __future__ import annotations
 MAG_INTERVAL_MS = 100
 OFFSET_X = 24
 OFFSET_Y = 24
-DEFAULT_SIZE = 160
-MIN_SIZE = 80
+DEFAULT_SIZE = 128
+MIN_SIZE = 48
 MAX_SIZE = 480
 ZOOM_CHOICES = (2, 3, 4)
 DEFAULT_ZOOM = 2
+
+
+def default_offset(size: int) -> int:
+    """窓とカーソルの間隔。大きさに連動し最低40を保つ。"""
+    try:
+        return max(40, int(size) // 3)
+    except Exception:
+        return 40
+
+
+def fallback_bounds(cx: float, cy: float) -> tuple:
+    """仮想画面が取れない時の縮退。カーソルを含むよう素朴に広げる。"""
+    try:
+        ox = min(0.0, float(cx))
+        oy = min(0.0, float(cy))
+        ex = max(1920.0, float(cx))
+        ey = max(1080.0, float(cy))
+        return (ox, oy, ex - ox, ey - oy)
+    except Exception:
+        return (0.0, 0.0, 1920.0, 1080.0)
 
 
 def geometry_string(size: int, wx: int, wy: int) -> str:
@@ -172,15 +192,22 @@ class MagnifierController:
                 return False
             ox, oy, vw, vh = virtual_screen()
             if vw <= 0 or vh <= 0:
-                # 縮退: プライマリ画面。それも取れなければ現状維持。
+                # 縮退: プライマリ画面。それも取れなければカーソル基準で広げる。
                 # DPI・配置は毎tick再取得のため実行中切替にも追従する。
                 try:
-                    vw = float(root.winfo_screenwidth())
-                    vh = float(root.winfo_screenheight())
+                    sw = float(root.winfo_screenwidth())
+                    sh = float(root.winfo_screenheight())
                 except Exception:
-                    return self.visible
+                    sw, sh = 0.0, 0.0
+                if sw <= 0 or sh <= 0:
+                    cx0, cy0 = self._cursor_pos()
+                    ox, oy, vw, vh = fallback_bounds(cx0, cy0)
+                else:
+                    ox, oy, vw, vh = 0.0, 0.0, sw, sh
             cx, cy = self._cursor_pos()
-            lay = compute_layout(cx, cy, size, zoom, vw, vh, org_x=ox, org_y=oy)
+            off = default_offset(size)
+            lay = compute_layout(cx, cy, size, zoom, vw, vh,
+                                 off_x=off, off_y=off, org_x=ox, org_y=oy)
             self.last_layout = dict(lay)
             try:
                 self._win.geometry(geometry_string(lay["size"], lay["wx"], lay["wy"]))
