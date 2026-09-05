@@ -100,6 +100,7 @@ class AppSettings:
     discovery_enabled: bool = False
     tilt_inverted: bool = False
     swap_back_forward: bool = False
+    debug_log_enabled: bool = False
 
     def to_json_dict(self) -> dict:
         return {
@@ -112,6 +113,7 @@ class AppSettings:
             "discoveryEnabled": self.discovery_enabled,
             "tiltInverted": self.tilt_inverted,
             "swapBackForward": self.swap_back_forward,
+            "debugLogEnabled": self.debug_log_enabled,
         }
 
     @staticmethod
@@ -140,6 +142,7 @@ class AppSettings:
         s.discovery_enabled = bool(d.get("discoveryEnabled", False))
         s.tilt_inverted = bool(d.get("tiltInverted", False))
         s.swap_back_forward = bool(d.get("swapBackForward", False))
+        s.debug_log_enabled = bool(d.get("debugLogEnabled", False))
         return s
 
 

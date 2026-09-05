@@ -71,12 +71,13 @@ class HookEngine:
     """
 
     def __init__(self, router=None, key_router=None, discovery=None,
-                 swap_provider=None, tilt_provider=None):
+                 swap_provider=None, tilt_provider=None, touch_filter=None):
         self.router = router
         self.key_router = key_router
         self.discovery = discovery
         self.swap_provider = swap_provider
         self.tilt_provider = tilt_provider
+        self.touch_filter = touch_filter
         self.running = False
         self._thread = None
         self._thread_id = None
@@ -102,6 +103,15 @@ class HookEngine:
     def _tilt_inv(self) -> bool:
         try:
             return bool(self.tilt_provider()) if self.tilt_provider else False
+        except Exception:
+            return False
+
+    def should_skip_touch(self, extra_info: int) -> bool:
+        """Pure helper: True when HWHEEL event is touch-derived (passthrough)."""
+        try:
+            if self.touch_filter is None:
+                return False
+            return bool(self.touch_filter(int(extra_info)))
         except Exception:
             return False
 
@@ -170,6 +180,15 @@ class HookEngine:
                     info = ctypes.cast(lParam, ctypes.POINTER(MSLLHOOKSTRUCT)).contents
                     if is_injected_mouse(info.flags):
                         return user32.CallNextHookEx(None, nCode, wParam, lParam)
+                    if int(msg) == WM_MOUSEHWHEEL:
+                        try:
+                            raw = info.dwExtraInfo
+                            extra = int(raw) if isinstance(raw, int) else int(
+                                getattr(raw, "value", 0) or 0)
+                        except Exception:
+                            extra = 0
+                        if engine.should_skip_touch(extra):
+                            return user32.CallNextHookEx(None, nCode, wParam, lParam)
                     resolved = engine.resolve_mouse_event(msg, int(info.mouseData))
                     if resolved is not None:
                         button, is_down = resolved

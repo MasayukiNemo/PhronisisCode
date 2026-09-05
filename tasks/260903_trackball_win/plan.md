@@ -126,6 +126,36 @@ MVPクリティカルパス: T1-T2-T3-T4-T7-T8 で最小動作。T5フック実�
 - Athena: 未招集。統合はKai
 - Yuna/Hayato: トライアングルと中間・最終ゲートで回す
 
+## Phase2 常駐+安全計画（HUD/トレイ/安全装置・2026-09-05合意）
+
+背景: 差分9点のうち4 HUD・5 トレイ・9 安全装置を搭載。6 デバイス列挙・7 精密可視化は不要、8 自動起動はPhase1済み。
+
+タスク分解:
+
+1. [ ] P2-1 core/hud.py: HudController。tkinter Toplevel pill（精密ON緑/OFF灰+sacle表示）、flashで表示し1.5s後自動消去。スレッドセーフ（root.after(0)寄せ、headless no-op）。表示中の再flashは文言更新のみでタイマー追加なし（合体仕様）
+2. [ ] P2-2 core/tray.py: TrayController。ctypes Shell_NotifyIconW自前実装（隠し窓スレッド、右クリックメニュー: 設定を開く/精密切替/終了、左クリックで設定表示、精密ONでアイコン+ツールチップ切替）。非Windows no-op、失敗時はdisabled化し窓常駐に縮退。実機不調時はpystray代替をPhase3に退避
+3. [ ] P2-3 core/safety.py: 純粋部。is_from_touch(extra)（FROMTOUCH署名判別）、EscTracker（2s内5打で発火）、tilt抑止判定（0.3s窓）。DiscoveryLogにdebugファイル出力（%TEMP%/bstbb700_debug.log、有効時のみ）
+4. [ ] P2-4 settings: debug_log_enabled追加（JSON往復、既定False）
+5. [ ] P2-5 app.py配線: 精密変化点（route_key/route_mouse精密分岐の前後比較+_toggle_precise）でHUD flash、run()でtray起動/停止、Esc5連打+%TEMP%旗（TTL2s）でフック停止、チルト0.3sデバウンス、タッチ由来HWHEEL素通し、Discoveryタブにdebugログチェック追加
+6. [ ] P2-6 tests/test_phase2.py: HUD headless no-op・after寄せ、tray非Windows no-op・アイコン選択、safety3件、debug往復、kill-switch統合
+7. [ ] P2-7 検証: py_compile全件、31+新規PASS、health 5/5、MANUAL追記、exe再ビルド、Hayato最終ゲート
+
+依存: P2-3 -> P2-5、P2-1 -> P2-5、P2-2 -> P2-5、P2-4 -> P2-5 -> P2-6 -> P2-7
+
+リスク:
+- R1 tray別スレッドとtkinterの競合 → 対策: UI操作は全てafter(0)寄せ、tray失敗は縮退
+- R2 HUD flashの連打でafter溢れ → 対策: 表示中は更新のみ、タイマー単一化
+- R3 kill-switch誤爆（通常のEsc5連打で停止） → 対策: 発動時はdiscovery+UIに明示し設定画面から再開可
+
+招集判断の記録(Phase2):
+- Hermes: 未招集。Shell_NotifyIcon/dwExtraInfo署名は公開仕様でKaiが直接確認
+- Gaia: 未招集。設計案分岐なし
+- Artemis: 本Phase2計画で代替
+- Daedalus: 招集。P2-1〜P2-6の実装を担当
+- Metis: 実装後に招集
+- Athena: 未招集。統合はKai
+- Yuna/Hayato: トライアングルと中間・最終ゲートで回す
+
 ## 自己検証計画（80%基準）
 
 brief必須6件に対する検証:

@@ -45,3 +45,7 @@ Windows 11でBluetooth接続の5ボタントラックボールBSTBB700（チル�
 | Phase1範囲 | 操作系(キャプチャ+ビルダー+プリセット+一般タブ) | 全部盛り一気 | 毎日触る割当の痛みから。常駐系(HUD/トレイ/自動起動/列挙)はPhase2 |
 | 自動起動方式 | レジストリRunキー(winreg標準のみ) | スタートアップlnk | lnkはCOM実装が重い。Runキーは標準のみでトグル可 |
 | Win不要置換 | 権限ガイド→AV/SmartScreen案内、反転系は対象外 | Macのまま移植 | SPIは方向を触らない。実機反転報告が出たらHID相当で対応 |
+| Phase2範囲 | HUD+トレイ+安全装置を搭載、6列挙・7可視化は不要 | 全部盛り | 6はVID特定済み前提で不要、7は手触り確認済みで不要。8はPhase1済み |
+| トレイ方式 | ctypes Shell_NotifyIconW自前実装 | pystray導入 | 標準のみ方針を維持。失敗時は窓常駐に縮退 |
+| HUD方式 | tkinter pillのflash表示+自動消去 | 常時表示 | フック別スレッドからはafter(0)でUIスレッドに寄せる |
+| 安全装置Win化 | Esc5連打+%TEMP%旗・debug log・チルト0.3s・タッチ由来素通し | Macのまま | タッチ判別はdwExtraInfoのFROMTOUCH署名で素通し |

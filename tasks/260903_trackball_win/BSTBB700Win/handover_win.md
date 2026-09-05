@@ -1,8 +1,13 @@
 # 引き継ぎ書 — BSTBB700Win（Win11環境へ）
 
-## 現状（Phase1済み・2026-09-04）
+## 現状（Phase2済み・2026-09-05）
 
-- Win環境で起動ブロッカーと未配線を修正。py_compile 10件PASS、ロジック単体テスト31/31 PASS、code_health_check 5/5 PASS
+- py_compile 14件PASS、単体テスト47/47 PASS、code_health_check 5/5 PASS
+- Phase2追加: HUD flash・トレイ自前常駐・安全装置（Esc5連打+%TEMP%旗・debug log・チルト0.3s・タッチ素通し）・フック再開ボタン・Metis重大3件修正+回帰
+- 6列挙・7可視化は不要で確定。8自動起動はPhase1済み。トレイ実機不調時はpystray代替をPhase3に退避
+- 残りは実機確認（tray/HUD/kill・キャプチャ修飾・Run登録）とexe再ビルド後の起動確認
+
+## 前段（Phase1・2026-09-04）
 - 修正点: app.py直接実行(`python app.py`)可、WH_MOUSE_LL/WH_KEYBOARD_LL実配線(注入無視で再帰防止、横取り/素通し、別スレッドポンプ、縮退起動)、キーボードトリガー配線(横取り消費)、swap/tilt反映、競合警告と反転トグルとcustom VKのUI追加
 - Phase1追加: キャプチャ割当(修飾合成・Esc取消)・ビルダー(修飾4+キー82+プリセット15)・一般タブ(自動起動Run・案内・フォルダ・リセット・0.2.0)・Metis重大3件修正+回帰3件
 - トレイはMVP簡易版(tkinter常駐)のまま。READMEの看板を簡易版に修正済み
@@ -16,8 +21,13 @@ BSTBB700Win/
   core/mapper.py      XBUTTON/HWHEEL解決（純粋関数）
   core/precise.py     トグル/ホールド状態機械 + SPI写像
   core/keys.py        SendInput計画と実行
-  core/hooks.py       フック定数とデコード + HookEngine骨格
-  core/discovery.py   ログバッファ
+  core/hooks.py       フック定数とデコード + HookEngine実配線（注入無視・タッチ素通し）
+  core/discovery.py   ログバッファ + debugファイル出力
+  core/vktable.py     VK表82件 + プリセット15件
+  core/autostart.py   レジストリRun自動起動
+  core/hud.py         精密HUD flash
+  core/tray.py        タスクトレイ自前常駐
+  core/safety.py      FROMTOUCH判別・Esc追跡・チルト抑止
   tests/test_*.py     Mac実行可能な単体テスト5件
   build_win.bat       PyInstaller単一exe化
   README.md           実行と配布手順

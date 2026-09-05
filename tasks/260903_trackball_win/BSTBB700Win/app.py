@@ -12,11 +12,14 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
-    from core.discovery import DiscoveryLog
+    from core.discovery import DiscoveryLog, default_debug_log_path
     from core.hooks import HookEngine
     from core.keys import emit
     from core.mapper import decide_action
     from core.precise import PreciseController, WinSpeedBackend, is_hold_capable_trigger
+    from core.safety import EscTracker, is_from_touch, should_suppress_tilt
+    from core.hud import HudController
+    from core.tray import TrayController
     from core.settings import (
         TRIGGER_VK,
         AppSettings,
@@ -27,11 +30,14 @@ try:
         SettingsStore,
     )
 except ImportError:  # `python -m BSTBB700Win.app` package mode
-    from .core.discovery import DiscoveryLog
+    from .core.discovery import DiscoveryLog, default_debug_log_path
     from .core.hooks import HookEngine
     from .core.keys import emit
     from .core.mapper import decide_action
     from .core.precise import PreciseController, WinSpeedBackend, is_hold_capable_trigger
+    from .core.safety import EscTracker, is_from_touch, should_suppress_tilt
+    from .core.hud import HudController
+    from .core.tray import TrayController
     from .core.settings import (
         TRIGGER_VK,
         AppSettings,
@@ -68,6 +74,15 @@ except ImportError:  # package mode
 import tkinter as tk
 from tkinter import ttk
 
+import time
+import tempfile
+from pathlib import Path
+
+
+def disable_flag_path() -> Path:
+    base = os.environ.get("TEMP") or os.environ.get("TMP") or tempfile.gettempdir()
+    return Path(base) / "bstbb700_disable"
+
 
 BUTTON_ROWS = [
     ("back", "戻る (XBUTTON1)"),
@@ -82,6 +97,8 @@ TRIGGER_CHOICES = [
     "mouseForward", "mouseCenter",
     "mouseTiltLeft", "mouseTiltRight", "mouseTiltEither",
 ]
+
+TILT_SUPPRESS_S = 0.3
 
 
 class App:
@@ -104,20 +121,105 @@ class App:
             discovery=self.discovery,
             swap_provider=lambda: bool(self.store.settings.swap_back_forward),
             tilt_provider=lambda: bool(self.store.settings.tilt_inverted),
+            touch_filter=lambda extra: bool(is_from_touch(extra)),
         )
+        self.hud = HudController()
+        self.tray = TrayController()
+        self.esc = EscTracker()
+        self._last_tilt_monotonic: float | None = None
+        self._disable_flag_checked_at: float = 0.0
+        self._disable_flag_cached: bool = False
+        self._disable_flag_cache_init: bool = False
         self.root: tk.Tk | None = None
         self._capturing: dict | None = None
         self._capture_result: tuple | None = None
         self._capture_dialog = None
 
+    def _reset_disable_flag_cache(self) -> None:
+        self._disable_flag_cache_init = False
+        self._disable_flag_cached = False
+
+    def _kill_flag_active(self) -> bool:
+        """%TEMP%/bstbb700_disable presence with 2s TTL cache."""
+        try:
+            now = time.monotonic()
+        except Exception:
+            now = 0.0
+        try:
+            if self._disable_flag_cache_init and (now - self._disable_flag_checked_at) < 2.0:
+                return self._disable_flag_cached
+        except Exception:
+            pass
+        try:
+            active = bool(disable_flag_path().exists())
+        except Exception:
+            active = False
+        self._disable_flag_cached = active
+        self._disable_flag_checked_at = now
+        self._disable_flag_cache_init = True
+        return active
+
+    def _flash_hud(self, active: bool, scale: float) -> None:
+        try:
+            self.hud.flash(bool(active), float(scale))
+        except Exception:
+            pass
+
+    def _sync_tray_precise(self) -> None:
+        try:
+            self.tray.set_precise(bool(self.precise.is_active))
+        except Exception:
+            pass
+
+    def _sync_status_var(self) -> None:
+        try:
+            var = getattr(self, "_status_var", None)
+            if var is not None:
+                var.set("精密 ON" if self.precise.is_active else "精密 OFF")
+        except Exception:
+            pass
+
+    def _fire_kill_switch(self) -> None:
+        try:
+            self.precise.set_active(False, 1.0)
+        except Exception:
+            pass
+        try:
+            self.hooks.stop()
+        except Exception:
+            pass
+        try:
+            self.discovery.add("kill-switch: Esc連打でフック停止（設定画面から再開可）")
+        except Exception:
+            pass
+        self._sync_status_var()
+        self._sync_tray_precise()
+        self._sync_hook_status_var()
+
     # Router used by hooks and testable directly
     def route_mouse(self, button: str, is_down: bool) -> str:
+        if self._kill_flag_active():
+            return "passthrough"
+        if button in (ButtonID.TILT_LEFT.value, ButtonID.TILT_RIGHT.value):
+            try:
+                now = time.monotonic()
+            except Exception:
+                now = 0.0
+            if self._last_tilt_monotonic is not None and should_suppress_tilt(
+                    self._last_tilt_monotonic, now, TILT_SUPPRESS_S):
+                return "passthrough"
+            self._last_tilt_monotonic = now
         s = self.store.settings
+        before = bool(self.precise.is_active)
         consuming = self.store.is_precise_trigger_consuming(button)
         action = decide_action(self.store.mapping_for(button) is not None, consuming)
         if action == "precise":
             self.precise.handle_mouse_trigger(button, is_down, s.precise_trigger,
                                               s.precise_mode, s.precise_scale, s.precise_enabled)
+            if bool(self.precise.is_active) != before:
+                self._flash_hud(self.precise.is_active, s.precise_scale)
+                self._sync_tray_precise()
+                self._sync_status_var()
             return "precise"
         if action == "emit":
             if is_down:
@@ -141,23 +243,40 @@ class App:
         return None  # mouse/none triggers are not keyboard-consumable
 
     def route_key(self, vk: int, is_down: bool) -> bool:
+        if self._kill_flag_active():
+            return False
         if self._capturing is not None:
             return self._handle_capture_key(int(vk), bool(is_down))
+        if int(vk) == 27 and bool(is_down):
+            try:
+                fired = self.esc.push(time.monotonic())
+            except Exception:
+                fired = False
+            if fired:
+                self._fire_kill_switch()
+                return True
         s = self.store.settings
         if not s.precise_enabled:
             return False
         want = self.trigger_vk()
         if want is None or int(vk) != int(want):
             return False
+        before = bool(self.precise.is_active)
         if s.precise_mode == PreciseMode.TOGGLE.value:
             if is_down:
                 self.precise.toggle(s.precise_scale, s.precise_enabled, s.precise_mode)
-            return True
-        if is_down:
-            self.precise.hold_began(s.precise_scale, s.precise_enabled, s.precise_mode)
+            consumed = True
         else:
-            self.precise.hold_ended(s.precise_mode)
-        return True
+            if is_down:
+                self.precise.hold_began(s.precise_scale, s.precise_enabled, s.precise_mode)
+            else:
+                self.precise.hold_ended(s.precise_mode)
+            consumed = True
+        if bool(self.precise.is_active) != before:
+            self._flash_hud(self.precise.is_active, s.precise_scale)
+            self._sync_tray_precise()
+            self._sync_status_var()
+        return consumed
 
     def _live_modifier_bits(self) -> int:
         """Read Ctrl/Shift/Alt/Win via GetKeyState. Delayed ctypes, Mac-safe (0)."""
@@ -215,6 +334,17 @@ class App:
         root.title("BSTBB700 Customizer (Win)")
         root.geometry("700x600")
         self.root = root
+        try:
+            self.hud.attach(root)
+        except Exception:
+            pass
+        try:
+            if bool(self.store.settings.debug_log_enabled):
+                self.discovery.set_debug_file(default_debug_log_path())
+            else:
+                self.discovery.set_debug_file(None)
+        except Exception:
+            pass
         nb = ttk.Notebook(root)
         nb.pack(fill="both", expand=True, padx=8, pady=8)
 
@@ -539,8 +669,12 @@ class App:
 
     def _toggle_precise(self) -> None:
         s = self.store.settings
+        before = bool(self.precise.is_active)
         self.precise.toggle(s.precise_scale, s.precise_enabled, s.precise_mode)
-        self._status_var.set("精密 ON" if self.precise.is_active else "精密 OFF")
+        self._sync_status_var()
+        if bool(self.precise.is_active) != before:
+            self._flash_hud(self.precise.is_active, s.precise_scale)
+            self._sync_tray_precise()
 
     def _build_discovery_tab(self, parent) -> None:
         ttk.Label(parent, text="XBUTTON/HWHEEL/中央の実機ログ用。Win環境でボタンを押して確認").pack(anchor="w", padx=8, pady=4)
@@ -550,11 +684,54 @@ class App:
         row.pack(anchor="w", padx=8, pady=2)
         ttk.Button(row, text="更新", command=self._refresh_disc).pack(side="left", padx=2)
         ttk.Button(row, text="クリア", command=self._clear_disc).pack(side="left", padx=2)
+        ttk.Button(row, text="フック再開", command=self._restart_hooks).pack(side="left", padx=2)
+        self._hook_status_var = tk.StringVar(value=self._hook_status_text())
+        ttk.Label(row, textvariable=self._hook_status_var).pack(side="left", padx=8)
+        self._debug_var = tk.BooleanVar(value=bool(self.store.settings.debug_log_enabled))
+        ttk.Checkbutton(parent, text="デバッグログをファイル出力 (%TEMP%/bstbb700_debug.log)",
+                        variable=self._debug_var,
+                        command=lambda: self._set_debug_log(self._debug_var.get())).pack(anchor="w", padx=8)
+
+    def _hook_status_text(self) -> str:
+        try:
+            if self._kill_flag_active():
+                return "フック停止中（無効化フラグあり）"
+            running = bool(self.hooks.running)
+        except Exception:
+            running = False
+        return "フック動作中" if running else "フック停止中"
+
+    def _sync_hook_status_var(self) -> None:
+        try:
+            var = getattr(self, "_hook_status_var", None)
+            if var is not None:
+                var.set(self._hook_status_text())
+        except Exception:
+            pass
+
+    def _restart_hooks(self) -> None:
+        try:
+            ok = bool(self.hooks.start())
+        except Exception:
+            ok = False
+        try:
+            self.discovery.add("フック再開: " + ("成功" if ok else "失敗"))
+            if ok and self._kill_flag_active():
+                self.discovery.add("注意: 無効化フラグファイルが残っているため素通し継続。外して再開すること")
+        except Exception:
+            pass
+        self._sync_hook_status_var()
+        self._refresh_disc()
 
     def _refresh_disc(self) -> None:
+        if getattr(self, "_disc_text", None) is None:
+            return
+        if self.root is None:
+            return
         self._disc_text.delete("1.0", "end")
         for line in self.discovery.lines()[-100:]:
             self._disc_text.insert("end", line + "\n")
+        self._sync_hook_status_var()
 
     def _clear_disc(self) -> None:
         try:
@@ -562,6 +739,18 @@ class App:
         except Exception:
             pass
         self._refresh_disc()
+
+    def _set_debug_log(self, v: bool) -> None:
+        on = bool(v)
+        try:
+            self.store.settings.debug_log_enabled = on
+            self.store.save()
+        except Exception:
+            pass
+        try:
+            self.discovery.set_debug_file(default_debug_log_path() if on else None)
+        except Exception:
+            pass
 
     def _build_general_tab(self, parent) -> None:
         ttk.Label(parent, text="BSTBB700Win 0.2.0 (Phase1)").pack(anchor="w", padx=8, pady=4)
@@ -658,6 +847,17 @@ class App:
         except Exception:
             pass
         try:
+            dbg = getattr(self, "_debug_var", None)
+            if dbg is not None:
+                dbg.set(bool(self.store.settings.debug_log_enabled))
+        except Exception:
+            pass
+        try:
+            self.discovery.set_debug_file(
+                default_debug_log_path() if bool(self.store.settings.debug_log_enabled) else None)
+        except Exception:
+            pass
+        try:
             if hasattr(self, "_swap_var"):
                 self._swap_var.set(bool(self.store.settings.swap_back_forward))
             if hasattr(self, "_tilt_var"):
@@ -668,8 +868,46 @@ class App:
         except Exception:
             pass
 
+    def _bring_to_front(self) -> None:
+        try:
+            if self.root is None:
+                return
+            self.root.deiconify()
+            self.root.lift()
+            try:
+                self.root.focus_force()
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+    def _quit_from_tray(self) -> None:
+        try:
+            if self.root is None:
+                return
+            self.root.quit()
+            try:
+                self.root.destroy()
+            except Exception:
+                pass
+        except Exception:
+            pass
+
     def run(self) -> None:
         root = self.build_ui()
+        try:
+            ok_tray = self.tray.start(
+                on_show=lambda: root.after(0, self._bring_to_front),
+                on_toggle_precise=lambda: root.after(0, self._toggle_precise),
+                on_quit=lambda: root.after(0, self._quit_from_tray),
+            )
+        except Exception:
+            ok_tray = False
+        if not ok_tray:
+            try:
+                self.discovery.add("tray: 常駐アイコンを開始できず窓常駐に縮退")
+            except Exception:
+                pass
         ok = self.hooks.start()
         if not ok:
             try:
@@ -679,6 +917,10 @@ class App:
         try:
             root.mainloop()
         finally:
+            try:
+                self.tray.stop()
+            except Exception:
+                pass
             self.precise.restore()
             self.hooks.stop()
 
