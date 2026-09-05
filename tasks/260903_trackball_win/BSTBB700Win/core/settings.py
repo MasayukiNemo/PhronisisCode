@@ -122,6 +122,9 @@ class AppSettings:
     precise_was_active: bool = False
     normal_speed: int = 10
     hud_enabled: bool = True
+    magnifier_enabled: bool = True
+    magnifier_zoom: int = 2
+    magnifier_size: int = 320
 
     def to_json_dict(self) -> dict:
         return {
@@ -138,6 +141,9 @@ class AppSettings:
             "preciseWasActive": self.precise_was_active,
             "normalSpeed": self.normal_speed,
             "hudEnabled": self.hud_enabled,
+            "magnifierEnabled": self.magnifier_enabled,
+            "magnifierZoom": self.magnifier_zoom,
+            "magnifierSize": self.magnifier_size,
         }
 
     @staticmethod
@@ -174,6 +180,18 @@ class AppSettings:
             s.normal_speed = 10
         s.normal_speed = min(max(s.normal_speed, 1), 20)
         s.hud_enabled = bool(d.get("hudEnabled", True))
+        s.magnifier_enabled = bool(d.get("magnifierEnabled", True))
+        try:
+            s.magnifier_zoom = int(d.get("magnifierZoom", 2))
+        except Exception:
+            s.magnifier_zoom = 2
+        if s.magnifier_zoom not in (2, 3, 4):
+            s.magnifier_zoom = 2
+        try:
+            s.magnifier_size = int(d.get("magnifierSize", 320))
+        except Exception:
+            s.magnifier_size = 320
+        s.magnifier_size = min(max(s.magnifier_size, 200), 480)
         return s
 
 

@@ -14,10 +14,13 @@ from ctypes import wintypes
 
 IS_WINDOWS = os.name == "nt"
 
+SRCCOPY = 0x00CC0020
+
 if IS_WINDOWS:
     _user32 = ctypes.WinDLL("user32", use_last_error=True)
     _kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
     _shell32 = ctypes.WinDLL("shell32", use_last_error=True)
+    _gdi32 = ctypes.WinDLL("gdi32", use_last_error=True)
 
     HOOKPROC = ctypes.WINFUNCTYPE(
         ctypes.c_long, ctypes.c_int, wintypes.WPARAM, wintypes.LPARAM)
@@ -98,15 +101,30 @@ if IS_WINDOWS:
     _shell32.Shell_NotifyIconW.argtypes = (wintypes.DWORD, ctypes.c_void_p)
     _shell32.Shell_NotifyIconW.restype = wintypes.BOOL
 
+    # ---- magnifier (screen capture blit; StretchBlt lives in gdi32) ----
+    _user32.GetDC.argtypes = (wintypes.HWND,)
+    _user32.GetDC.restype = wintypes.HANDLE
+    _user32.ReleaseDC.argtypes = (wintypes.HWND, wintypes.HANDLE)
+    _user32.ReleaseDC.restype = ctypes.c_int
+    _user32.GetCursorPos.argtypes = (ctypes.c_void_p,)
+    _user32.GetCursorPos.restype = wintypes.BOOL
+    _gdi32.StretchBlt.argtypes = (
+        wintypes.HANDLE, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+        wintypes.HANDLE, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+        wintypes.DWORD)
+    _gdi32.StretchBlt.restype = wintypes.BOOL
+
     user32 = _user32
     kernel32 = _kernel32
     shell32 = _shell32
+    gdi32 = _gdi32
 else:
     HOOKPROC = None  # type: ignore[assignment]
     WNDPROC = None  # type: ignore[assignment]
     user32 = None  # type: ignore[assignment]
     kernel32 = None  # type: ignore[assignment]
     shell32 = None  # type: ignore[assignment]
+    gdi32 = None  # type: ignore[assignment]
 
 
 def last_error() -> int | str:
