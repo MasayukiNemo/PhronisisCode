@@ -177,16 +177,34 @@ def ask_choice(prompt, lo, hi, default):
         print("{}-{}で入力してください。".format(lo, hi))
 
 
-def comment_for(score, total):
-    """結果寸評。"""
+def comment_for(score, total, theme="", diff=""):
+    """結果寸評。tier別に複数文型から選ぶ（固定文の使い回しにしない）。"""
+    import random
+    topic = "「{}」".format(theme) if theme else "今回"
+    level = "（難易度:{}）".format(diff) if diff else ""
     if total <= 0:
         return "問題なし"
     rate = score / total
     if rate >= 0.8:
-        return "見事。全問級の冴え"
-    if rate >= 0.5:
-        return "まずまず。もう一押し"
-    return "伸びしろ十分。復習で取り返そう"
+        pool = [
+            "{s}/{t}。{topic}はほぼ制圧{lv}、見事な冴え",
+            "{s}/{t}{lv}。{topic}の急所を外さない、いい腕だ",
+            "{s}/{t}。{topic}に関しては人に教えられる側だな",
+        ]
+    elif rate >= 0.5:
+        pool = [
+            "{s}/{t}{lv}。{topic}は半分制圧、もう一押しだ",
+            "{s}/{t}。{topic}の勘所は掴んでいる、あと一息だな",
+            "{s}/{t}{lv}。惜しい取りこぼしがある、復習で埋めよう",
+        ]
+    else:
+        pool = [
+            "{s}/{t}{lv}。{topic}は伸びしろ十分、解説を武器に取り返そう",
+            "{s}/{t}。{topic}の土台作りからだな、次が楽しみだ",
+            "{s}/{t}{lv}。今日の種を拾えただけでも収穫だ、次に繋げよう",
+        ]
+    return random.choice(pool).format(
+        s=score, t=total, topic=topic, lv=level)
 
 
 def main():
@@ -266,7 +284,9 @@ def main():
             print("解説: {}".format(item["explanation"]))
 
     total = len(questions)
-    print("\n結果: {}/{}。{}".format(score, total, comment_for(score, total)))
+    print("\n結果: {}/{}。{}".format(
+        score, total,
+        comment_for(score, total, meta, DIFFICULTY[difficulty][0])))
     return 0
 
 

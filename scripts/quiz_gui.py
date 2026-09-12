@@ -173,6 +173,8 @@ class QuizApp:
         self.agy, self.questions, meta, diff_name = payload
         self.index = 0
         self.score = 0
+        self.theme_name = meta
+        self.diff_name = diff_name
         self.meta_line = "{} / 難易度: {}".format(meta, diff_name)
         self._build_question()
 
@@ -266,8 +268,9 @@ class QuizApp:
         frame.pack(fill=tk.BOTH, expand=True)
         ttk.Label(frame, text="結果: {}/{}".format(self.score, total),
                   font=("", 20, "bold")).pack(pady=(40, 8))
-        ttk.Label(frame, text=core.comment_for(self.score, total),
-                  font=("", 12)).pack(pady=(0, 24))
+        ttk.Label(frame, text=core.comment_for(
+            self.score, total, self.theme_name, self.diff_name),
+            font=("", 12), wraplength=600).pack(pady=(0, 24))
         ttk.Button(frame, text="もう一度",
                    command=self._build_setup).pack()
 
