@@ -42,9 +42,6 @@ def main():
     app.answer_buttons[3].invoke()
     root.update()
     assert app.feedback_var.get().startswith("不正解"), app.feedback_var.get()
-    assert app.show_btn.instate(["!disabled"]), "show-locked"
-    app.show_btn.invoke()
-    root.update()
     assert "解説" in app.explain_var.get(), app.explain_var.get()
     assert app.next_btn.instate(["!disabled"]), "next-locked"
     assert app.next_btn.cget("text") == "結果を見る", app.next_btn.cget("text")

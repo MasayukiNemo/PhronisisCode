@@ -29,6 +29,14 @@ class QuizApp:
         self.root.title("Geminiクイズ")
         self.root.geometry("680x560")
         self.root.minsize(560, 460)
+        style = ttk.Style()
+        for name in ("clam", "vista", "winnative"):
+            if name in style.theme_names():
+                style.theme_use(name)
+                break
+        style.configure("TButton", padding=6, font=("", 11))
+        style.configure("Title.TLabel", font=("", 18, "bold"))
+        style.configure("Q.TLabel", font=("", 13, "bold"))
         self.agy = None
         self.cwd = core.base_dir()
         self.questions = []
@@ -54,7 +62,8 @@ class QuizApp:
         frame = ttk.Frame(self.root, padding=16)
         frame.pack(fill=tk.BOTH, expand=True)
 
-        ttk.Label(frame, text="Geminiクイズ", font=("", 18, "bold")).pack(pady=(0, 12))
+        ttk.Label(frame, text="Geminiクイズ",
+                  style="Title.TLabel").pack(pady=(0, 12))
 
         ttk.Label(frame, text="テーマ（空でおまかせ）:").pack(anchor=tk.W)
         self.theme_var = tk.StringVar()
@@ -170,6 +179,7 @@ class QuizApp:
     # -- 出題画面 --
     def _build_question(self):
         self._clear()
+        self.answered = False
         item = self.questions[self.index]
         total = len(self.questions)
         frame = ttk.Frame(self.root, padding=16)
@@ -184,7 +194,7 @@ class QuizApp:
                    command=lambda: self._cancel_to_setup(self.epoch)).pack(
             side=tk.RIGHT)
 
-        ttk.Label(frame, text=item["q"], font=("", 12),
+        ttk.Label(frame, text=item["q"], style="Q.TLabel",
                   wraplength=620, justify=tk.LEFT).pack(
             anchor=tk.W, pady=(8, 12))
 
@@ -195,20 +205,19 @@ class QuizApp:
             self.answer_buttons.append(btn)
 
         self.feedback_var = tk.StringVar()
-        ttk.Label(frame, textvariable=self.feedback_var, font=("", 11, "bold"),
-                  wraplength=620, justify=tk.LEFT).pack(
-            anchor=tk.W, pady=(8, 0))
-        self.explain_var = tk.StringVar()
-        ttk.Label(frame, textvariable=self.explain_var,
-                  wraplength=620, justify=tk.LEFT).pack(
-            anchor=tk.W, pady=(0, 8))
+        self.explain_var = tk.StringVar(value="回答すると解説がここに出ます")
+        self.feedback_label = ttk.Label(
+            frame, textvariable=self.feedback_var, font=("", 12, "bold"),
+            wraplength=620, justify=tk.LEFT)
+        self.feedback_label.pack(anchor=tk.W, pady=(8, 4))
+        box = ttk.Frame(frame, relief="sunken", padding=8)
+        box.pack(fill=tk.X, pady=(0, 8))
+        ttk.Label(box, textvariable=self.explain_var,
+                  wraplength=600, justify=tk.LEFT).pack(
+            anchor=tk.W)
         nav = ttk.Frame(frame)
         nav.pack(fill=tk.X)
         last = self.index == len(self.questions) - 1
-        self.show_btn = ttk.Button(nav, text="解説を見る",
-                                   command=self._show_explain,
-                                   state="disabled")
-        self.show_btn.pack(side=tk.LEFT)
         self.next_btn = ttk.Button(nav,
                                    text="結果を見る" if last else "次の問題へ",
                                    command=self._next, state="disabled")
@@ -219,25 +228,27 @@ class QuizApp:
                   foreground="gray").pack(anchor=tk.E)
 
     def _answer(self, picked):
+        if self.answered:
+            return
+        self.answered = True
         item = self.questions[self.index]
-        for btn in self.answer_buttons:
+        for n, btn in enumerate(self.answer_buttons):
             btn.state(["disabled"])
+            if n == item["answer"]:
+                btn.configure(text=btn.cget("text") + "  ○")
         if picked == item["answer"]:
             self.score += 1
             self.feedback_var.set("正解")
+            self.feedback_label.configure(foreground="green")
         else:
             self.feedback_var.set(
                 "不正解。正解は {} です。".format(item["answer"] + 1))
-        self.score_var.set("スコア: {}".format(self.score))
-        self.show_btn.state(["!disabled"])
-
-    def _show_explain(self):
-        item = self.questions[self.index]
+            self.feedback_label.configure(foreground="red")
         if item["explanation"]:
             self.explain_var.set("解説: {}".format(item["explanation"]))
         else:
             self.explain_var.set("解説なし")
-        self.show_btn.state(["disabled"])
+        self.score_var.set("スコア: {}".format(self.score))
         self.next_btn.state(["!disabled"])
 
     def _next(self):

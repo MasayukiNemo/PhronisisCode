@@ -169,13 +169,23 @@ def _decode(data):
     return data.decode("utf-8", errors="replace") if data else ""
 
 
+def _popen_kwargs():
+    """Windowsで子プロセスの黒窓popupを抑止する。 console親では無変化。"""
+    if os.name == "nt":
+        info = subprocess.STARTUPINFO()
+        info.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        return {"startupinfo": info,
+                "creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0)}
+    return {}
+
+
 def run_agy(agy, prompt, cwd, model=None, effort=None, timeout=DEFAULT_TIMEOUT,
             conversation=None, continue_=False, output_format="json"):
     """agy をヘッドレス実行し、(returncode, stdout, stderr) を返す。"""
     cmd = [agy, "-p", prompt,
-           "--print-timeout", f"{timeout}s",
-           "--dangerously-skip-permissions",
-           "--output-format", output_format]
+            "--print-timeout", f"{timeout}s",
+            "--dangerously-skip-permissions",
+            "--output-format", output_format]
     if model:
         cmd += ["--model", model]
     if effort:
@@ -184,7 +194,8 @@ def run_agy(agy, prompt, cwd, model=None, effort=None, timeout=DEFAULT_TIMEOUT,
         cmd += ["--conversation", str(conversation)]
     elif continue_:
         cmd += ["--continue"]
-    proc = subprocess.run(cmd, cwd=str(cwd), capture_output=True)
+    proc = subprocess.run(cmd, cwd=str(cwd), capture_output=True,
+                          **_popen_kwargs())
     return proc.returncode, _decode(proc.stdout), _decode(proc.stderr)
 
 
