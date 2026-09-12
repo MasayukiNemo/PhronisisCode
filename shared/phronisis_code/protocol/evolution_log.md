@@ -37,3 +37,4 @@
 - task扱い: 採用＋Code流再構成（brief/plan/log/deep_thought残し、reference/は正本移行後に削除）
 - 検証: agy 1.2.2でquota（gemini_5h 100%）/ask疎通、health 5/5、Daedalus致命傷なし・Metis条件付承認（文書補足で解消）
 - 残存リスク: skip-permissionsの読み取り範囲（.env等）は運用限定（ask混ぜ物禁止・out限定・7%以下手動停止）で受容、知見に明記
+- conduct追記 (2026-09-13): orchestration_flow_code.md末尾に「外部AI活用（agy）」節を新設。呼出主体Kai・ask限定局面・Hermes優先・quota停止時記録・log書式を定義。知見は手順詳細に一本化
