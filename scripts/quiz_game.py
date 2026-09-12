@@ -3,22 +3,35 @@
 quiz_game.py — Geminiおまかせクイズゲーム（CLI対話式）
 
 agy経由Geminiにテーマ・出題・解説を任せる4択クイズ。標準ライブラリのみ。
-conduct準拠: ask前にquota確認、7%以下は停止、ask結果はtasks logに記録する運用。
+conduct準拠: ask前にquota確認、7%以下は停止。
+PyInstaller onefile化対応: agy呼出はimport取込（frozen時にscripts相対が崩れない）。
 
 遊び方:
-    python scripts/quiz_game.py [--num 5]
+    python scripts/quiz_game.py [--num 5] [--difficulty 2]
+    dist/quiz_game.exe
 """
 
 import argparse
 import json
-import subprocess
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-AGY_QUERY = REPO_ROOT / "scripts" / "agy_query.py"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+try:
+    import agy_query
+except ImportError:
+    agy_query = None
+
 QUOTA_STOP_THRESHOLD = 7
 DEFAULT_NUM = 5
+DEFAULT_DIFFICULTY = 2
+
+DIFFICULTY = {
+    1: ("おてがる", "小学生にもわかるやさしい言葉で、基本的な内容を"),
+    2: ("ふつう", "一般的な知識レベルで、素直な内容を"),
+    3: ("チャレンジ", "ひねりや応用を効かせて、考えさせる内容を"),
+    4: ("マニア", "専門家も唸る細部・専門知識を突いた内容を"),
+}
 
 
 def safe_console():
@@ -30,33 +43,41 @@ def safe_console():
             pass
 
 
-def ask_quota():
+def base_dir():
+    """agyのcwd用。frozen時はexe所在、通常時はリポジトリ直下。"""
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent.parent
+
+
+def require_agy():
+    """agyバイナリを解決する。無ければ例外メッセージを返す。"""
+    if agy_query is None:
+        return None, "agy_queryモジュールが見つかりません"
+    agy = agy_query.find_agy()
+    if not agy:
+        return None, "agy binary not found. Install Antigravity CLI first."
+    return agy, ""
+
+
+def ask_quota(agy):
     """残量JSONを返す。取得不能時は空辞書。"""
     try:
-        proc = subprocess.run(
-            [sys.executable, str(AGY_QUERY), "quota"],
-            capture_output=True, timeout=120, cwd=str(REPO_ROOT))
-    except (OSError, subprocess.SubprocessError):
-        return {}
-    try:
-        data = json.loads(proc.stdout.decode("utf-8", errors="replace"))
+        data = agy_query.get_quota(agy)
         return data if isinstance(data, dict) else {}
-    except ValueError:
+    except Exception:
         return {}
 
 
-def ask_gemini(prompt, timeout=180):
+def ask_gemini(agy, prompt, cwd, timeout=180):
     """agy askを1回投げる。戻り: (ok, text)。"""
     try:
-        proc = subprocess.run(
-            [sys.executable, str(AGY_QUERY), "ask", prompt, "--timeout", str(timeout)],
-            capture_output=True, timeout=timeout + 30, cwd=str(REPO_ROOT))
-    except (OSError, subprocess.SubprocessError) as exc:
+        ok, text, meta = agy_query.ask(
+            agy, prompt, timeout=timeout, cwd=str(cwd))
+    except Exception as exc:
         return False, "ask実行に失敗: {}".format(exc)
-    text = proc.stdout.decode("utf-8", errors="replace").strip()
-    if proc.returncode != 0 or not text:
-        err = proc.stderr.decode("utf-8", errors="replace").strip()[:300] or text[:300]
-        return False, err or "応答なし"
+    if not ok:
+        return False, str((meta or {}).get("error", "") or "応答なし")[:300]
     return True, text
 
 
@@ -80,7 +101,7 @@ def valid_question(item):
     answer = item.get("answer")
     if (not isinstance(item.get("q"), str) or not item["q"].strip()
             or not isinstance(choices, list) or len(choices) != 4
-            or not all(isinstance(c, str) for c in choices)
+            or not all(isinstance(c, str) and c.strip() for c in choices)
             or not isinstance(answer, int) or not 0 <= answer <= 3):
         return None
     return {
@@ -91,21 +112,23 @@ def valid_question(item):
     }
 
 
-def fetch_questions(theme, num):
-    """N問を取得する。1回リトライ＋使える問だけ救済。戻り: (questions, theme_name)。"""
+def fetch_questions(agy, cwd, theme, num, difficulty):
+    """N問を取得する。1回リトライ＋使える問だけ救済。戻り: (questions, meta文)。"""
+    name, desc = DIFFICULTY[difficulty]
     theme_line = "テーマはおまかせで" if not theme else "テーマは「{}」で".format(theme)
     prompt = (
-        "クイズを{}{}問作ってください。4択で、難易度に波をつけてください。"
+        "クイズを{}{}問作ってください。難易度「{}」として、{}"
+        "難易度に波をつけすぎず、このレベルで揃えてください。"
         "回答はJSONのみを出力してください。説明文や前置きは不要です。"
         "形式: {{\"theme\": \"テーマ名\", \"questions\": ["
         "{{\"q\": \"問題文\", \"choices\": [\"選択肢1\", \"選択肢2\", "
         "\"選択肢3\", \"選択肢4\"], \"answer\": 0, "
         "\"explanation\": \"解説文\"}}]}}"
-        "answerは正解の番号（0-3）です。"
-    ).format(theme_line, num)
+        "answerは正解の番号（0-3）です。正解番号は各問でばらけさせてください。"
+    ).format(theme_line, num, name, desc)
     last_err = ""
     for _ in (1, 2):
-        ok, text = ask_gemini(prompt)
+        ok, text = ask_gemini(agy, prompt, cwd)
         if not ok:
             last_err = text
             continue
@@ -118,7 +141,10 @@ def fetch_questions(theme, num):
         questions = [q for q in (valid_question(i) for i in raw) if q]
         if questions:
             theme_name = data.get("theme", "") if isinstance(data, dict) else ""
-            return questions[:num], str(theme_name or "おまかせ")
+            note = ""
+            if len(questions) < num:
+                note = "（{}問分のみ取得）".format(len(questions))
+            return questions[:num], "{}{}".format(theme_name or "おまかせ", note)
         last_err = "有効な問題が0問"
     return [], last_err
 
@@ -129,6 +155,24 @@ def read_line(prompt):
         return input(prompt).strip()
     except EOFError:
         return None
+
+
+def ask_choice(prompt, lo, hi, default):
+    """数値選択。空Enterでデフォルト、範囲外・非数値は再入力、EOFはNone。"""
+    while True:
+        raw = read_line("{} ({}-{}、空={}): ".format(prompt, lo, hi, default))
+        if raw is None:
+            return None
+        if raw == "":
+            return default
+        try:
+            value = int(raw)
+        except ValueError:
+            print("{}-{}で入力してください。".format(lo, hi))
+            continue
+        if lo <= value <= hi:
+            return value
+        print("{}-{}で入力してください。".format(lo, hi))
 
 
 def comment_for(score, total):
@@ -146,29 +190,56 @@ def comment_for(score, total):
 def main():
     safe_console()
     parser = argparse.ArgumentParser(description="Geminiおまかせクイズゲーム")
-    parser.add_argument("--num", type=int, default=DEFAULT_NUM)
+    parser.add_argument("--num", type=int, default=None)
+    parser.add_argument("--difficulty", type=int, default=None,
+                        choices=list(DIFFICULTY))
     args = parser.parse_args()
-    num = min(max(args.num, 1), 10)
 
-    quota = ask_quota()
+    agy, agy_err = require_agy()
+    if agy is None:
+        print("開始できません: {}".format(agy_err))
+        return 2
+    cwd = base_dir()
+
+    quota = ask_quota(agy)
     five = quota.get("gemini_5h")
     if five is not None and five <= QUOTA_STOP_THRESHOLD:
         print("残量{}%のため開始しません（7%以下は停止）。またの機会に。".format(five))
         return 2
     if five is not None:
         print("残量{}%。遊びましょう。".format(five))
+    else:
+        print("残量を取得できませんでした。続行します。")
 
     theme_raw = read_line("テーマをどうぞ（空Enterでおまかせ）: ")
     if theme_raw is None:
         print("\n中止しました。")
         return 130
-    theme = theme_raw
+    if args.num is not None:
+        if not 1 <= args.num <= 10:
+            print("--numは1-10で指定してください（{}は範囲外のため5問にします）。".format(args.num))
+        num = min(max(args.num, 1), 10)
+    else:
+        num = ask_choice("設問数", 1, 10, DEFAULT_NUM)
+        if num is None:
+            print("\n中止しました。")
+            return 130
+    if args.difficulty is not None:
+        difficulty = args.difficulty
+    else:
+        print("難易度: " + " / ".join(
+            "{}={}".format(k, v[0]) for k, v in sorted(DIFFICULTY.items())))
+        difficulty = ask_choice("難易度", 1, 4, DEFAULT_DIFFICULTY)
+        if difficulty is None:
+            print("\n中止しました。")
+            return 130
+
     print("出題を生成中…")
-    questions, meta = fetch_questions(theme, num)
+    questions, meta = fetch_questions(agy, cwd, theme_raw, num, difficulty)
     if not questions:
         print("出題の生成に失敗: {}".format(meta))
         return 1
-    print("テーマ: {}".format(meta))
+    print("テーマ: {} / 難易度: {}".format(meta, DIFFICULTY[difficulty][0]))
 
     score = 0
     for i, item in enumerate(questions, 1):
