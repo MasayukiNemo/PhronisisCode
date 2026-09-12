@@ -102,6 +102,9 @@ class QuizApp:
         name = self.diff_label.get()
         difficulty = next((k for k, v in core.DIFFICULTY.items() if v[0] == name), 2)
         theme = self.theme_var.get().strip()
+        self.last_theme = theme
+        self.last_num = num
+        self.last_diff = difficulty
         self.status_var.set("準備中…")
         epoch = self.epoch + 1
         self.epoch = epoch
@@ -253,6 +256,23 @@ class QuizApp:
         self.score_var.set("スコア: {}".format(self.score))
         self.next_btn.state(["!disabled"])
 
+    def _replay(self):
+        """同じテーマ・設問数で別セットを生成する。難易度は選択値を使う。"""
+        name = self.retry_diff.get()
+        difficulty = next(
+            (k for k, v in core.DIFFICULTY.items() if v[0] == name),
+            self.last_diff)
+        self.last_diff = difficulty
+        epoch = self.epoch + 1
+        self.epoch = epoch
+        self._holder = (epoch, "", None)
+        thread = threading.Thread(
+            target=self._generate,
+            args=(self.last_theme, self.last_num, difficulty, epoch),
+            daemon=True)
+        thread.start()
+        self._build_loading(epoch)
+
     def _next(self):
         self.index += 1
         if self.index >= len(self.questions):
@@ -270,8 +290,18 @@ class QuizApp:
                   font=("", 20, "bold")).pack(pady=(40, 8))
         ttk.Label(frame, text=core.comment_for(
             self.score, total, self.theme_name, self.diff_name),
-            font=("", 12), wraplength=600).pack(pady=(0, 24))
-        ttk.Button(frame, text="もう一度",
+            font=("", 12), wraplength=600).pack(pady=(0, 16))
+        row = ttk.Frame(frame)
+        row.pack(pady=(0, 12))
+        ttk.Label(row, text="難易度:").pack(side=tk.LEFT)
+        self.retry_diff = tk.StringVar(value=self.diff_name)
+        ttk.Combobox(row, textvariable=self.retry_diff, width=12,
+                     state="readonly",
+                     values=[v[0] for _, v in sorted(
+                         core.DIFFICULTY.items())]).pack(side=tk.LEFT, padx=4)
+        ttk.Button(row, text="同じテーマで別セット",
+                   command=self._replay).pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Button(frame, text="設定に戻る",
                    command=self._build_setup).pack()
 
 

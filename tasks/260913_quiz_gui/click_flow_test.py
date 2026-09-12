@@ -47,13 +47,30 @@ def main():
     assert app.next_btn.cget("text") == "結果を見る", app.next_btn.cget("text")
     app.next_btn.invoke()
     root.update()
-    again = [w for w in root.winfo_children()[0].winfo_children()
-             if w.winfo_class() == "TButton" and w.cget("text") == "もう一度"]
-    assert again, "no-again"
+    replay = [w for w in root.winfo_children()[0].winfo_children()
+              if w.winfo_class() == "TFrame"]
+    buttons = []
+    for fr in replay:
+        buttons += [w for w in fr.winfo_children()
+                    if w.winfo_class() == "TButton"]
+    again = [w for w in buttons if w.cget("text") == "同じテーマで別セット"]
+    assert again, "no-replay"
     again[0].invoke()
     root.update()
+    assert pump(root, lambda: len(app.answer_buttons) == 4
+                and app.index == 0), "no-replay-questions"
+    app.answer_buttons[1].invoke()
+    root.update()
+    assert app.feedback_var.get().startswith("正解"), app.feedback_var.get()
+    app.next_btn.invoke()
+    root.update()
+    back = [w for w in root.winfo_children()[0].winfo_children()
+            if w.winfo_class() == "TButton" and w.cget("text") == "設定に戻る"]
+    assert back, "no-back"
+    back[0].invoke()
+    root.update()
     assert hasattr(app, "start_btn"), "no-setup-return"
-    print("flow-ok: 不正解→解説→結果→もう一度→設定")
+    print("flow-ok: 不正解→解説→結果→別セット→正解→結果→設定")
     root.destroy()
     return 0
 
