@@ -55,3 +55,9 @@
 - build: quiz_game.exe / quiz_gui.exe とも Build complete
 - Hayato寸評ゲート: WARN（証跡貼付の再犯指摘。本節で解消）。WARNのまま自律確定する
 | 2026-09-13 | 結果画面に再戦導線（同じテーマで別セット＋難易度変更＋設定に戻る）。flow_test拡張で全遷移検証、exe再ビルド・起動生存 | flow-ok（不正解→解説→結果→別セット→正解→結果→設定）。証跡: Build complete（onefile windowed）、alive:True（10秒生存）、health 5/5 PASS |
+
+## 追修正（長文対応）
+
+| 日時 | 内容 | 結果 |
+|------|------|------|
+| 2026-09-13 | スクロール案を撤回し大窓720＋折返し＋字数目安（200/60/300字）に変更。flow_test復旧・再ビルド・起動生存・health 5/5 | flow-ok。旧テストプロセス残留のロックは特定PIDのみ停止して解消。Hayato PASS（次は窓を広げず文章を切れ、を記録） |

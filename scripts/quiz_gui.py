@@ -27,8 +27,8 @@ class QuizApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Geminiクイズ")
-        self.root.geometry("680x560")
-        self.root.minsize(560, 460)
+        self.root.geometry("720x720")
+        self.root.minsize(600, 600)
         style = ttk.Style()
         for name in ("clam", "vista", "winnative"):
             if name in style.theme_names():
@@ -200,7 +200,7 @@ class QuizApp:
             side=tk.RIGHT)
 
         ttk.Label(frame, text=item["q"], style="Q.TLabel",
-                  wraplength=620, justify=tk.LEFT).pack(
+                  wraplength=660, justify=tk.LEFT).pack(
             anchor=tk.W, pady=(8, 12))
 
         for n, choice in enumerate(item["choices"]):
@@ -218,7 +218,7 @@ class QuizApp:
         box = ttk.Frame(frame, relief="sunken", padding=8)
         box.pack(fill=tk.X, pady=(0, 8))
         ttk.Label(box, textvariable=self.explain_var,
-                  wraplength=600, justify=tk.LEFT).pack(
+                  wraplength=640, justify=tk.LEFT).pack(
             anchor=tk.W)
         nav = ttk.Frame(frame)
         nav.pack(fill=tk.X)
