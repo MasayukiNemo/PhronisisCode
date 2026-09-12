@@ -125,6 +125,8 @@ def fetch_questions(agy, cwd, theme, num, difficulty):
         "\"選択肢3\", \"選択肢4\"], \"answer\": 0, "
         "\"explanation\": \"解説文\"}}]}}"
         "answerは正解の番号（0-3）です。正解番号は各問でばらけさせてください。"
+        "偽の選択肢は、同カテゴリ・同形式で長さを揃え、ありがちな誤解や隣接概念を使ってください。"
+        "「すべて正しい」「すべて誤り」「上記のすべて」系の選択肢は禁止です。"
     ).format(theme_line, num, name, desc)
     last_err = ""
     for _ in (1, 2):
