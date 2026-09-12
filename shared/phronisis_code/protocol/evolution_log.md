@@ -26,3 +26,14 @@
 - health_check昇格（a14806c）: `shared/phronisis_code/orchestration_flow_code.md:120` に `python scripts/code_health_check.py --no-color` 必須化を Hayatoゲート内に1行追記、 `hooks/pre-push:14` に python_run.sh 経由の BLOCK 配線を追加
 - --help修正（b18b998）: `scripts/code_health_check.py:4,215` の em dash（—）を - に置換し `python scripts/code_health_check.py --help` が Windows cp932 で exit 0 になることを再検証
 - hygiene: `git remote` の平文 token（ghp_）を除去し `https://github.com/MasayukiNemo/PhronisisCode.git` に正規化、露出済み token は GitHub 側で revoke 要。 `orchestration_flow_code.md` に3ゲート表を追記し追従性を向上
+
+## agy取込 (2026-09-13)
+
+- 本家 PhronisisCore commit db1a221 の agy提案（tasks/260913_gemini_subscription 未コミット配置）を条件付き採用
+- 拾ったもの: ask/quota実測 + generate手順（scripts/agy_query.pyをCode適応、docstring注記のみ追加で本体不変、agy-only運用）
+- 捨てたもの: extract/multimodal_ingest/MarkItDown/--auto-model/APIフォールバック（Code需要薄・課金落ち回避・依存なし維持）
+- 拾わなかった理由: extractはCode需要薄、節新設は追従性を破る、黙ってAPI課金落ちは苦労逃げに反する
+- 本家から拾い捨てた境界: ブリッジ本体は温存（extract分岐・API分岐は追従のため残すがCode運用では呼ばない）、知見は knowledge/code_knowledge/agy.md に絞って記録
+- task扱い: 採用＋Code流再構成（brief/plan/log/deep_thought残し、reference/は正本移行後に削除）
+- 検証: agy 1.2.2でquota（gemini_5h 100%）/ask疎通、health 5/5、Daedalus致命傷なし・Metis条件付承認（文書補足で解消）
+- 残存リスク: skip-permissionsの読み取り範囲（.env等）は運用限定（ask混ぜ物禁止・out限定・7%以下手動停止）で受容、知見に明記
