@@ -33,6 +33,14 @@ DIFFICULTY = {
     4: ("マニア", "専門家も唸る細部・専門知識を突いた内容を"),
 }
 
+# 難易度別の字数目安（問題/選択肢/解説）。マニアは内容優先で緩める
+LENGTH = {
+    1: (150, 40, 200),
+    2: (200, 60, 300),
+    3: (300, 80, 400),
+    4: (500, 120, 600),
+}
+
 
 def safe_console():
     """cp932コンソールで落ちないよう置換出力にする（表示崩れと実害を分離）。"""
@@ -115,6 +123,7 @@ def valid_question(item):
 def fetch_questions(agy, cwd, theme, num, difficulty):
     """N問を取得する。1回リトライ＋使える問だけ救済。戻り: (questions, meta文)。"""
     name, desc = DIFFICULTY[difficulty]
+    qlen, clen, elen = LENGTH[difficulty]
     theme_line = "テーマはおまかせで" if not theme else "テーマは「{}」で".format(theme)
     prompt = (
         "クイズを{}{}問作ってください。難易度「{}」として、{}"
@@ -127,8 +136,9 @@ def fetch_questions(agy, cwd, theme, num, difficulty):
         "answerは正解の番号（0-3）です。正解番号は各問でばらけさせてください。"
         "偽の選択肢は、同カテゴリ・同形式で長さを揃え、ありがちな誤解や隣接概念を使ってください。"
         "「すべて正しい」「すべて誤り」「上記のすべて」系の選択肢は禁止です。"
-        "問題文は200字以内、選択肢は各60字以内、解説は300字以内を目安にしてください。"
-    ).format(theme_line, num, name, desc)
+        "問題文は{}字以内、選択肢は各{}字以内、解説は{}字以内を目安にしてください。"
+        "ただし内容の正確さと専門性を字数より優先してください。"
+    ).format(theme_line, num, name, desc, qlen, clen, elen)
     last_err = ""
     for _ in (1, 2):
         ok, text = ask_gemini(agy, prompt, cwd)
@@ -285,8 +295,7 @@ def main():
             print("解説: {}".format(item["explanation"]))
 
     total = len(questions)
-    print("\n結果: {}/{}。{}".format(
-        score, total,
+    print("\n結果: {}".format(
         comment_for(score, total, meta, DIFFICULTY[difficulty][0])))
     return 0
 

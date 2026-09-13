@@ -113,15 +113,21 @@ class QuizApp:
             target=self._generate,
             args=(theme, num, difficulty, epoch), daemon=True)
         thread.start()
-        self._build_loading(epoch)
+        self._build_loading(epoch, self._loading_text(theme, num, difficulty))
+
+    @staticmethod
+    def _loading_text(theme, num, difficulty):
+        name = core.DIFFICULTY[difficulty][0]
+        shown = theme if theme else "おまかせ"
+        return "「{}」を{}問生成中…（難易度:{}）".format(shown, num, name)
 
     # -- 生成中画面 --
-    def _build_loading(self, epoch):
+    def _build_loading(self, epoch, status="出題を生成中…"):
         self._clear()
         frame = ttk.Frame(self.root, padding=32)
         frame.pack(fill=tk.BOTH, expand=True)
-        ttk.Label(frame, text="出題を生成中…",
-                  font=("", 14)).pack(pady=(40, 12))
+        ttk.Label(frame, text=status,
+                  font=("", 14), wraplength=600).pack(pady=(40, 12))
         bar = ttk.Progressbar(frame, mode="indeterminate", length=320)
         bar.pack()
         bar.start(15)
@@ -176,6 +182,7 @@ class QuizApp:
         self.agy, self.questions, meta, diff_name = payload
         self.index = 0
         self.score = 0
+        self.picks = []
         self.theme_name = meta
         self.diff_name = diff_name
         self.meta_line = "{} / 難易度: {}".format(meta, diff_name)
@@ -236,6 +243,7 @@ class QuizApp:
         if self.answered:
             return
         self.answered = True
+        self.picks.append(picked)
         item = self.questions[self.index]
         for n, btn in enumerate(self.answer_buttons):
             btn.state(["disabled"])
@@ -256,6 +264,38 @@ class QuizApp:
         self.score_var.set("スコア: {}".format(self.score))
         self.next_btn.state(["!disabled"])
 
+    def _save_result(self):
+        """出題・回答・正解・解説をテキスト保存する。戻り: 保存パス。"""
+        import datetime
+        stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        path = self.cwd / "quiz_{}.txt".format(stamp)
+        lines = [
+            "Geminiクイズ結果 {}".format(
+                datetime.datetime.now().strftime("%Y-%m-%d %H:%M")),
+            "テーマ: {} / 難易度: {} / スコア: {}/{}".format(
+                self.theme_name, self.diff_name, self.score,
+                len(self.questions)),
+            "",
+        ]
+        for i, (item, picked) in enumerate(
+                zip(self.questions, self.picks), 1):
+            mark = "正解" if picked == item["answer"] else "不正解"
+            lines.append("Q{}: {}".format(i, item["q"]))
+            for n, choice in enumerate(item["choices"], 1):
+                lines.append("  {}. {}".format(n, choice))
+            lines.append("  回答: {} / 正解: {} → {}".format(
+                picked + 1, item["answer"] + 1, mark))
+            if item["explanation"]:
+                lines.append("  解説: {}".format(item["explanation"]))
+            lines.append("")
+        try:
+            path.write_text("\n".join(lines), encoding="utf-8")
+        except OSError as exc:
+            self._fail("保存失敗", "保存できません: {}".format(exc))
+            return None
+        self.saved_var.set("保存しました: {}".format(path))
+        return path
+
     def _replay(self):
         """同じテーマ・設問数で別セットを生成する。難易度は選択値を使う。"""
         name = self.retry_diff.get()
@@ -271,7 +311,9 @@ class QuizApp:
             args=(self.last_theme, self.last_num, difficulty, epoch),
             daemon=True)
         thread.start()
-        self._build_loading(epoch)
+        self._build_loading(
+            epoch,
+            self._loading_text(self.last_theme, self.last_num, difficulty))
 
     def _next(self):
         self.index += 1
@@ -286,7 +328,7 @@ class QuizApp:
         total = len(self.questions)
         frame = ttk.Frame(self.root, padding=32)
         frame.pack(fill=tk.BOTH, expand=True)
-        ttk.Label(frame, text="結果: {}/{}".format(self.score, total),
+        ttk.Label(frame, text="結果",
                   font=("", 20, "bold")).pack(pady=(40, 8))
         ttk.Label(frame, text=core.comment_for(
             self.score, total, self.theme_name, self.diff_name),
@@ -301,8 +343,13 @@ class QuizApp:
                          core.DIFFICULTY.items())]).pack(side=tk.LEFT, padx=4)
         ttk.Button(row, text="同じテーマで別セット",
                    command=self._replay).pack(side=tk.LEFT, padx=(8, 0))
+        self.saved_var = tk.StringVar()
+        ttk.Button(frame, text="結果を保存",
+                   command=self._save_result).pack(pady=(4, 0))
+        ttk.Label(frame, textvariable=self.saved_var,
+                  foreground="gray", wraplength=600).pack()
         ttk.Button(frame, text="設定に戻る",
-                   command=self._build_setup).pack()
+                   command=self._build_setup).pack(pady=(8, 0))
 
 
 def main():

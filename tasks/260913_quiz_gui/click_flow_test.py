@@ -67,6 +67,22 @@ def main():
     back = [w for w in root.winfo_children()[0].winfo_children()
             if w.winfo_class() == "TButton" and w.cget("text") == "設定に戻る"]
     assert back, "no-back"
+    save = [w for w in root.winfo_children()[0].winfo_children()
+            if w.winfo_class() == "TButton" and w.cget("text") == "結果を保存"]
+    assert save, "no-save"
+    save[0].invoke()
+    root.update()
+    saved = None
+    for w in root.winfo_children()[0].winfo_children():
+        if w.winfo_class() == "TLabel" and w.cget("text").startswith(
+                "保存しました"):
+            saved = w.cget("text").split(": ", 1)[1]
+    assert saved, "no-saved-path"
+    from pathlib import Path as _P
+    assert _P(saved).exists(), saved
+    body = _P(saved).read_text(encoding="utf-8")
+    assert "Q1" in body and "解説" in body, body[:200]
+    _P(saved).unlink()
     back[0].invoke()
     root.update()
     assert hasattr(app, "start_btn"), "no-setup-return"
