@@ -17,10 +17,17 @@ import quiz_game
 import quiz_gui
 
 quiz_game.ask_quota = lambda agy: {"gemini_5h": 100}
-quiz_game.fetch_questions = lambda agy, cwd, theme, num, d: (
-    [{"q": "Q?", "choices": ["a", "b", "c", "d"],
-      "answer": 1, "explanation": "E!"}],
-    "T/" + quiz_game.DIFFICULTY[d][0])
+
+
+def _stub_fetch(agy, cwd, theme, num, d, on_progress=None):
+    if on_progress:
+        on_progress(1, 1, True)
+    return ([{"q": "Q?", "choices": ["a", "b", "c", "d"],
+              "answer": 1, "explanation": "E!"}],
+            "T/" + quiz_game.DIFFICULTY[d][0])
+
+
+quiz_game.fetch_questions = _stub_fetch
 
 
 def pump(root, cond, timeout=15):
@@ -39,6 +46,7 @@ def main():
     root.update()
     app._on_start()
     assert pump(root, lambda: len(app.answer_buttons) == 4), "no-questions"
+    assert getattr(app, "progress_done", 0) == 1, "no-counter"
     app.answer_buttons[3].invoke()
     root.update()
     assert app.feedback_var.get().startswith("不正解"), app.feedback_var.get()

@@ -14,6 +14,7 @@ PyInstaller onefile化対応: agy呼出はimport取込（frozen時にscripts相�
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -38,7 +39,7 @@ LENGTH = {
     1: (150, 40, 200),
     2: (200, 60, 300),
     3: (300, 80, 400),
-    4: (500, 120, 600),
+    4: (350, 80, 400),
 }
 
 
@@ -120,28 +121,11 @@ def valid_question(item):
     }
 
 
-def fetch_questions(agy, cwd, theme, num, difficulty):
-    """N問を取得する。1回リトライ＋使える問だけ救済。戻り: (questions, meta文)。"""
-    name, desc = DIFFICULTY[difficulty]
-    qlen, clen, elen = LENGTH[difficulty]
-    theme_line = "テーマはおまかせで" if not theme else "テーマは「{}」で".format(theme)
-    prompt = (
-        "クイズを{}{}問作ってください。難易度「{}」として、{}"
-        "難易度に波をつけすぎず、このレベルで揃えてください。"
-        "回答はJSONのみを出力してください。説明文や前置きは不要です。"
-        "形式: {{\"theme\": \"テーマ名\", \"questions\": ["
-        "{{\"q\": \"問題文\", \"choices\": [\"選択肢1\", \"選択肢2\", "
-        "\"選択肢3\", \"選択肢4\"], \"answer\": 0, "
-        "\"explanation\": \"解説文\"}}]}}"
-        "answerは正解の番号（0-3）です。正解番号は各問でばらけさせてください。"
-        "偽の選択肢は、同カテゴリ・同形式で長さを揃え、ありがちな誤解や隣接概念を使ってください。"
-        "「すべて正しい」「すべて誤り」「上記のすべて」系の選択肢は禁止です。"
-        "問題文は{}字以内、選択肢は各{}字以内、解説は{}字以内を目安にしてください。"
-        "ただし内容の正確さと専門性を字数より優先してください。"
-    ).format(theme_line, num, name, desc, qlen, clen, elen)
+def _request_one(agy, cwd, prompt, timeout=150):
+    """1問分を取りに行く。1回リトライ付き。戻り: (questions, theme名, err)。"""
     last_err = ""
     for _ in (1, 2):
-        ok, text = ask_gemini(agy, prompt, cwd)
+        ok, text = ask_gemini(agy, prompt, cwd, timeout=timeout)
         if not ok:
             last_err = text
             continue
@@ -153,13 +137,50 @@ def fetch_questions(agy, cwd, theme, num, difficulty):
             continue
         questions = [q for q in (valid_question(i) for i in raw) if q]
         if questions:
-            theme_name = data.get("theme", "") if isinstance(data, dict) else ""
-            note = ""
-            if len(questions) < num:
-                note = "（{}問分のみ取得）".format(len(questions))
-            return questions[:num], "{}{}".format(theme_name or "おまかせ", note)
+            name = data.get("theme", "") if isinstance(data, dict) else ""
+            return questions, str(name or ""), ""
         last_err = "有効な問題が0問"
-    return [], last_err
+    return [], "", last_err
+
+
+def fetch_questions(agy, cwd, theme, num, difficulty, on_progress=None):
+    """1問ずつ逐次取得する。失敗問は飛ばして続行する。
+    on_progress(i, ok)は成功・失敗のたびに呼ぶ。戻り: (questions, meta文)。"""
+    name, desc = DIFFICULTY[difficulty]
+    qlen, clen, elen = LENGTH[difficulty]
+    theme_line = "テーマはおまかせで" if not theme else "テーマは「{}」で".format(theme)
+    prompt = (
+        "クイズを1問作ってください。難易度「{}」として、{}"
+        "回答はJSONのみを出力してください。説明文や前置きは不要です。"
+        "形式: {{\"theme\": \"テーマ名\", \"questions\": ["
+        "{{\"q\": \"問題文\", \"choices\": [\"選択肢1\", \"選択肢2\", "
+        "\"選択肢3\", \"選択肢4\"], \"answer\": 0, "
+        "\"explanation\": \"解説文\"}}]}}"
+        "answerは正解の番号（0-3）です。"
+        "偽の選択肢は、同カテゴリ・同形式で長さを揃え、ありがちな誤解や隣接概念を使ってください。"
+        "「すべて正しい」「すべて誤り」「上記のすべて」系の選択肢は禁止です。"
+        "問題文は{}字以内、選択肢は各{}字以内、解説は{}字以内を目安にしてください。"
+        "ただし内容の正確さと専門性を字数より優先してください。"
+    ).format(name, desc, qlen, clen, elen)
+    all_q = []
+    theme_name = ""
+    failed = 0
+    for i in range(1, num + 1):
+        questions, meta, err = _request_one(
+            agy, cwd, "{}（{}問目）".format(theme_line, i))
+        if questions:
+            all_q.append(questions[0])
+            theme_name = theme_name or meta
+        else:
+            failed += 1
+        if on_progress:
+            on_progress(i, num, bool(questions))
+    if not all_q:
+        return [], "全問失敗"
+    note = ""
+    if failed:
+        note = "（{}問分のみ取得）".format(len(all_q))
+    return all_q, "{}{}".format(theme_name or "おまかせ", note)
 
 
 def read_line(prompt):
@@ -266,7 +287,14 @@ def main():
             return 130
 
     print("出題を生成中…")
-    questions, meta = fetch_questions(agy, cwd, theme_raw, num, difficulty)
+    started = time.time()
+
+    def _progress(i, n, ok):
+        print("（{}問目{}）".format(i, "完了" if ok else "失敗・スキップ"))
+
+    questions, meta = fetch_questions(
+        agy, cwd, theme_raw, num, difficulty, on_progress=_progress)
+    print("（生成に{}秒かかりました）".format(int(time.time() - started)))
     if not questions:
         print("出題の生成に失敗: {}".format(meta))
         return 1
