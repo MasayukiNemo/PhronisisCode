@@ -110,8 +110,6 @@ class QuizApp:
         epoch = self.epoch + 1
         self.epoch = epoch
         self._holder = (epoch, "", None)
-        self.progress_done = 0
-        self.progress_total = num
         thread = threading.Thread(
             target=self._generate,
             args=(theme, num, difficulty, epoch), daemon=True)
@@ -151,11 +149,6 @@ class QuizApp:
         try:
             self.elapsed_var.set("経過{}秒".format(
                 int(time.time() - self._loading_since)))
-            done = getattr(self, "progress_done", 0)
-            total = getattr(self, "progress_total", 0)
-            if total:
-                self.load_status_var.set(
-                    "{}（{}問完了）".format(self.load_base, done))
         except tk.TclError:
             return
         self.root.after(1000, lambda: self._tick(epoch))
@@ -167,11 +160,6 @@ class QuizApp:
 
     def _generate(self, theme, num, difficulty, epoch):
         """別スレッドでquota→出題。結果も例外もholderに格納する。"""
-
-        def _progress(i, n, ok):
-            self.progress_done = i if ok else self.progress_done
-            self.progress_total = n
-
         try:
             agy, err = core.require_agy()
             if agy is None:
@@ -185,7 +173,7 @@ class QuizApp:
                     "残量{}%のため開始しません（7%以下は停止）。".format(five))
                 return
             questions, meta = core.fetch_questions(
-                agy, self.cwd, theme, num, difficulty, on_progress=_progress)
+                agy, self.cwd, theme, num, difficulty)
             if not questions:
                 self._holder = (
                     epoch, "error", "出題の生成に失敗: {}".format(meta))
@@ -336,8 +324,6 @@ class QuizApp:
         epoch = self.epoch + 1
         self.epoch = epoch
         self._holder = (epoch, "", None)
-        self.progress_done = 0
-        self.progress_total = self.last_num
         thread = threading.Thread(
             target=self._generate,
             args=(self.last_theme, self.last_num, difficulty, epoch),

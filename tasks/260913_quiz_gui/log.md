@@ -68,3 +68,4 @@
 | 2026-09-13 | 逐次取得化（1問ずつ＋カウンタ＋失敗飛ばし）。quota約5倍（1ask約1%→1ゲーム約5%）を明示 | syntax・flow-ok（カウンタassert追加）。実ask検証は本線配慮で停止、以降stubsのみ |
 | 2026-09-13 | 両exe再ビルド・起動生存・health 5/5（quota消費なし） | Build complete、alive:True、5/5 PASS |
 | 2026-09-13 | HayatoゲートWARN（stubのみの過剰主張、実ask要求）。根本さんの停止指示を優先し延期 | 失敗スキップ・実ask本検証は許可後に実施。WARNのまま自律確定する |
+| 2026-09-13 | 逐次取得を撤回しまとめ取りに戻す（quota5倍却下）。syntax・flow-ok。CLI exe再ビルド済み | GUI exeは起動中のため再ビルド待ち。遊び中と判断しkill停止 |
