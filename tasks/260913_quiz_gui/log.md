@@ -69,3 +69,4 @@
 | 2026-09-13 | 両exe再ビルド・起動生存・health 5/5（quota消費なし） | Build complete、alive:True、5/5 PASS |
 | 2026-09-13 | HayatoゲートWARN（stubのみの過剰主張、実ask要求）。根本さんの停止指示を優先し延期 | 失敗スキップ・実ask本検証は許可後に実施。WARNのまま自律確定する |
 | 2026-09-13 | 逐次取得を撤回しまとめ取りに戻す（quota5倍却下）。syntax・flow-ok。CLI exe再ビルド済み | GUI exeは起動中のため再ビルド待ち。遊び中と判断しkill停止 |
+| 2026-09-13 | 残骸はKaiのテスト残りと判明。起動中なしを確認しGUI exe再ビルド・起動生存・残骸始末・health 5/5 | Build complete、alive:True、残骸clean、5/5 PASS。Hayato WARNの条件（殺して再ビルド→再health）成就でPASSに更新 |
