@@ -19,7 +19,7 @@ import quiz_gui
 quiz_game.ask_quota = lambda agy: {"gemini_5h": 100}
 
 
-def _stub_fetch(agy, cwd, theme, num, d):
+def _stub_fetch(agy, cwd, theme, num, d, on_retry=None):
     return ([{"q": "Q?", "choices": ["a", "b", "c", "d"],
               "answer": 1, "explanation": "E!"}],
             "T/" + quiz_game.DIFFICULTY[d][0])

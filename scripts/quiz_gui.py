@@ -110,6 +110,7 @@ class QuizApp:
         epoch = self.epoch + 1
         self.epoch = epoch
         self._holder = (epoch, "", None)
+        self.retrying = False
         thread = threading.Thread(
             target=self._generate,
             args=(theme, num, difficulty, epoch), daemon=True)
@@ -149,6 +150,10 @@ class QuizApp:
         try:
             self.elapsed_var.set("経過{}秒".format(
                 int(time.time() - self._loading_since)))
+            base = self.load_base
+            if getattr(self, "retrying", False):
+                base += "（再試行中）"
+            self.load_status_var.set(base)
         except tk.TclError:
             return
         self.root.after(1000, lambda: self._tick(epoch))
@@ -173,7 +178,8 @@ class QuizApp:
                     "残量{}%のため開始しません（7%以下は停止）。".format(five))
                 return
             questions, meta = core.fetch_questions(
-                agy, self.cwd, theme, num, difficulty)
+                agy, self.cwd, theme, num, difficulty,
+                on_retry=self._mark_retry)
             if not questions:
                 self._holder = (
                     epoch, "error", "出題の生成に失敗: {}".format(meta))
@@ -314,6 +320,9 @@ class QuizApp:
         self.saved_var.set("保存しました: {}".format(path))
         return path
 
+    def _mark_retry(self):
+        self.retrying = True
+
     def _replay(self):
         """同じテーマ・設問数で別セットを生成する。難易度は選択値を使う。"""
         name = self.retry_diff.get()
@@ -324,6 +333,7 @@ class QuizApp:
         epoch = self.epoch + 1
         self.epoch = epoch
         self._holder = (epoch, "", None)
+        self.retrying = False
         thread = threading.Thread(
             target=self._generate,
             args=(self.last_theme, self.last_num, difficulty, epoch),

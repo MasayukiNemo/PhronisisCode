@@ -39,7 +39,7 @@ LENGTH = {
     1: (150, 40, 200),
     2: (200, 60, 300),
     3: (300, 80, 400),
-    4: (350, 80, 400),
+    4: (300, 70, 400),
 }
 
 
@@ -121,7 +121,8 @@ def valid_question(item):
     }
 
 
-def fetch_questions(agy, cwd, theme, num, difficulty):
+def fetch_questions(agy, cwd, theme, num, difficulty, verbose=False,
+                    on_retry=None):
     """N問まとめ取り（1ask）。1回リトライ＋使える問だけ救済。
     戻り: (questions, meta文)。quota節約のため逐次化しない。"""
     name, desc = DIFFICULTY[difficulty]
@@ -143,7 +144,12 @@ def fetch_questions(agy, cwd, theme, num, difficulty):
     ).format(theme_line, num, name, desc, qlen, clen, elen)
     last_err = ""
     timeout = 90 + 60 * num
-    for _ in (1, 2):
+    for attempt in (1, 2):
+        if attempt == 2:
+            if verbose:
+                print("（再試行中）")
+            if on_retry:
+                on_retry()
         ok, text = ask_gemini(agy, prompt, cwd, timeout=timeout)
         if not ok:
             last_err = text
@@ -271,7 +277,7 @@ def main():
     print("出題を生成中…")
     started = time.time()
     questions, meta = fetch_questions(
-        agy, cwd, theme_raw, num, difficulty)
+        agy, cwd, theme_raw, num, difficulty, verbose=True)
     print("（生成に{}秒かかりました）".format(int(time.time() - started)))
     if not questions:
         print("出題の生成に失敗: {}".format(meta))
