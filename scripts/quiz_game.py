@@ -27,6 +27,11 @@ QUOTA_STOP_THRESHOLD = 7
 DEFAULT_NUM = 5
 DEFAULT_DIFFICULTY = 2
 
+
+def timeout_for(num):
+    """問数連動のaskタイムアウト秒。5問マニアの長大出力に耐える設定。"""
+    return 90 + 60 * num
+
 DIFFICULTY = {
     1: ("おてがる", "小学生にもわかるやさしい言葉で、基本的な内容を"),
     2: ("ふつう", "一般的な知識レベルで、素直な内容を"),
@@ -144,7 +149,7 @@ def fetch_questions(agy, cwd, theme, num, difficulty, verbose=False,
         "ただし内容の正確さと専門性を字数より優先してください。"
     ).format(theme_line, num, name, desc, qlen, clen, elen)
     last_err = ""
-    timeout = 90 + 60 * num
+    timeout = timeout_for(num)
     for attempt in (1, 2):
         if attempt == 2:
             if verbose:
@@ -275,7 +280,7 @@ def main():
             print("\n中止しました。")
             return 130
 
-    print("出題を生成中…")
+    print("出題を生成中…（目安最大{}秒）".format(timeout_for(num)))
     started = time.time()
     questions, meta = fetch_questions(
         agy, cwd, theme_raw, num, difficulty, verbose=True)

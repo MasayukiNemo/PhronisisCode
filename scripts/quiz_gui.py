@@ -121,7 +121,8 @@ class QuizApp:
     def _loading_text(theme, num, difficulty):
         name = core.DIFFICULTY[difficulty][0]
         shown = theme if theme else "おまかせ"
-        return "「{}」を{}問生成中…（難易度:{}）".format(shown, num, name)
+        return "「{}」を{}問生成中…（難易度:{}、目安最大{}秒）".format(
+            shown, num, name, core.timeout_for(num))
 
     # -- 生成中画面 --
     def _build_loading(self, epoch, status="出題を生成中…"):
