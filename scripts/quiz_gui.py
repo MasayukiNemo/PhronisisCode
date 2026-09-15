@@ -235,8 +235,10 @@ class QuizApp:
             anchor=tk.W, pady=(8, 12))
 
         for n, choice in enumerate(item["choices"]):
-            btn = ttk.Button(frame, text="{}. {}".format(n + 1, choice),
-                             command=lambda p=n: self._answer(p))
+            btn = tk.Button(frame, text="{}. {}".format(n + 1, choice),
+                            anchor="w", justify="left", wraplength=620,
+                            font=("", 11), padx=8, pady=6,
+                            command=lambda p=n: self._answer(p))
             btn.pack(fill=tk.X, pady=3)
             self.answer_buttons.append(btn)
 
@@ -270,7 +272,7 @@ class QuizApp:
         self.picks.append(picked)
         item = self.questions[self.index]
         for n, btn in enumerate(self.answer_buttons):
-            btn.state(["disabled"])
+            btn.configure(state="disabled")
             if n == item["answer"]:
                 btn.configure(text=btn.cget("text") + "  ○")
         if picked == item["answer"]:

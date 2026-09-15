@@ -44,6 +44,7 @@ def main():
     root.update()
     app._on_start()
     assert pump(root, lambda: len(app.answer_buttons) == 4), "no-questions"
+    assert int(app.answer_buttons[0].cget("wraplength")) > 0, "no-wrap"
     app.answer_buttons[3].invoke()
     root.update()
     assert app.feedback_var.get().startswith("不正解"), app.feedback_var.get()
