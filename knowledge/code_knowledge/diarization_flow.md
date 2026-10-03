@@ -1,0 +1,38 @@
+# 話者分離つき文字起こしフロー (実戦版)
+
+最終更新: 2026-10-03 / 実績: 10月2日55分・9月19日83分・9月8日91分・10月3日理事会
+
+## 構成
+
+- Colabノート: tasks/261002_diarization/poc/colab_diarization.ipynb (本線)
+- 掃除: tasks/261002_diarization/poc/clean_output.py
+- ローカルPoC: tasks/261002_diarization/poc/diarize_transcribe.py (短尺のみ)
+- 窓: Gdrive_code/to_colab (入力) / from_colab (出力)。rclone起点はフロニシス直下
+
+## 定番フロー
+
+1. m4a (等倍) とPixel版txtをto_colabに置く。zipのままでよい
+2. ColabでGPUランタイム、ノートを上から実行。NUM_SPEAKERSは人数確定なら固定
+3. from_colabのjson/txtをrcloneで取得
+4. clean_output.pyで掃除 (幻覚・ループ・時刻修復。倍速なら--scale)
+5. Pixel正+whisper時刻話者で話者分離補正起こしと議事録を作成
+
+## 運用判断
+
+- 起こし: transformers版whisper turbo (GPU)。faster-whisperはColabでcuBLAS罠あり使用禁止
+- 分離: sherpa-onnx (seg int8 + Titanet small、HFトークン不要)。pyannoteは使わない
+- turboはtranscribe専用。翻訳はKai側。中国語も起こしは原文+Kai訳
+- 等倍で入れる。倍速は時刻破損・幻覚・話者分裂を招く。使うなら--scaleで戻す
+- 人数確定ならNUM_SPEAKERS固定が最強。不明なら自動+threshold 0.6-0.7
+- 長尺は30分自動分割 (起こしのみ)。分離は一括 (話者番号割れ防止)。チャンクJSONで再開可
+- Pixel版txtはzip同梱を自動複写。突合せはPixel正、時刻話者はwhisper
+- Colab backend過負荷はGPU変更か時間をおく。T4で十分
+- GPUなし検出で停止、完了ブザーあり、進捗は分離5%刻み
+
+## 落とし穴
+
+- av19とfaster-whisper非互換。ローカルはndarray渡しに固定済み
+- ローカルCPU全文はRTF0.77で実用外。短尺検証のみに使う
+- Colab mountはマイドライブのみ。パソコン欄は見えない
+- rclone起点はフロニシス直下 (gdrive:Gdrive_code = フロニシス/Gdrive_code)
+- ノート変更時はスタブ実行でフロー検証 (TEMPのcelltest_settings.py参照)

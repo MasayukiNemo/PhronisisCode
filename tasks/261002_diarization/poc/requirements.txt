@@ -1,0 +1,10 @@
+# requirements (PoC, CPU想定)
+# 注意: Python 3.13.5 / Windows 11 向け。バージョンは緩めに下限のみ指定。
+# sherpa-onnx は話者分離に使用。未導入でも単一話者フォールバックで動作する。
+# PyAV / ffmpeg / scipy は含めない。ffmpeg は別途導入 (任意)。
+# 注意: faster-whisperが連れてくるav 19系は本PoCでは未使用 (ndarray渡しに固定しPyAV経由を回避)。
+
+faster-whisper>=1.0.0
+sherpa-onnx>=1.10.0
+soundfile>=0.12.1
+numpy>=1.26.0

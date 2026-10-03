@@ -13,3 +13,9 @@ __pycache__/
 dist/
 build/
 *.spec
+# diarization PoC samples/outputs (audio + transcripts, do not commit)
+tasks/*/poc/samples/
+tasks/*/poc/out/
+tasks/*/poc/out_tmp/
+# Drive同期用 (音声・出力物。コミットしない)
+Gdrive_code/
