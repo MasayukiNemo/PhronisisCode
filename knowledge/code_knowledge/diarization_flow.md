@@ -36,3 +36,18 @@
 - Colab mountはマイドライブのみ。パソコン欄は見えない
 - rclone起点はフロニシス直下 (gdrive:Gdrive_code = フロニシス/Gdrive_code)
 - ノート変更時はスタブ実行でフロー検証 (TEMPのcelltest_settings.py参照)
+
+## ローカル道具 (各端末で用意)
+
+- ffmpeg: winget install Gyan.FFmpeg。m4a→16k wav変換と時刻調べ。PATH更新後は新シェルで有効
+- Python 3.13 + pip: requirements.txt (faster-whisper/sherpa-onnx/soundfile/numpy)。全文起こしはしない前提
+- rclone gdrive:: 本家方式を流用。browser認証または既存rclone.conf持込。root_folder_idでフロニシス限定推奨
+- 使うコマンド: rclone ls/lsd (確認)、rclone copy (取得)、rclone mkdir (窓作成)
+- 出力はリポジトリ内のみ。Drive配布はrclone copyで後配布 (本家ルール8方式)
+
+## 複数端末運用
+
+- PhronisisCodeは複数端末の別個体として動く。知識は端末非依存に書くこと
+- 端末固有 (PATH・ドライブ文字・認証状態) は知識に埋め込まない。確認コマンドを添える
+- 窓 (Gdrive_code) が真実の受渡し点。端末間の直接受渡しはしない
+- 音声・出力物はgit管理外。知識とコードのみSCする
