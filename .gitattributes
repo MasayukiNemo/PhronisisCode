@@ -9,3 +9,7 @@ hooks/pre-push text eol=lf
 *.py text eol=lf
 *.md text eol=lf
 *.json text eol=lf
+# クイズWeb版のWindowsバッチはCRLF固定（cmd向け）。既存のLFバッチには触れない
+quiz_web.bat text eol=crlf
+quiz_web_stub.bat text eol=crlf
+scripts/build_quiz_web.bat text eol=crlf
