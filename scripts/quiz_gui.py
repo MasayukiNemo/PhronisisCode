@@ -21,7 +21,7 @@ from tkinter import messagebox, ttk
 
 import quiz_game as core
 
-QUOTA_STOP_THRESHOLD = 7
+QUOTA_STOP_THRESHOLD = core.QUOTA_STOP_THRESHOLD
 
 
 class QuizApp:
@@ -176,7 +176,8 @@ class QuizApp:
             if five is not None and five <= QUOTA_STOP_THRESHOLD:
                 self._holder = (
                     epoch, "error",
-                    "残量{}%のため開始しません（7%以下は停止）。".format(five))
+                    "残量{}%のため開始しません（{}%以下は停止）。".format(
+                        five, QUOTA_STOP_THRESHOLD))
                 return
             questions, meta = core.fetch_questions(
                 agy, self.cwd, theme, num, difficulty,
@@ -294,29 +295,13 @@ class QuizApp:
     def _save_result(self):
         """出題・回答・正解・解説をテキスト保存する。戻り: 保存パス。"""
         import datetime
-        stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        path = self.cwd / "quiz_{}.txt".format(stamp)
-        lines = [
-            "Geminiクイズ結果 {}".format(
-                datetime.datetime.now().strftime("%Y-%m-%d %H:%M")),
-            "テーマ: {} / 難易度: {} / スコア: {}/{}".format(
-                self.theme_name, self.diff_name, self.score,
-                len(self.questions)),
-            "",
-        ]
-        for i, (item, picked) in enumerate(
-                zip(self.questions, self.picks), 1):
-            mark = "正解" if picked == item["answer"] else "不正解"
-            lines.append("Q{}: {}".format(i, item["q"]))
-            for n, choice in enumerate(item["choices"], 1):
-                lines.append("  {}. {}".format(n, choice))
-            lines.append("  回答: {} / 正解: {} → {}".format(
-                picked + 1, item["answer"] + 1, mark))
-            if item["explanation"]:
-                lines.append("  解説: {}".format(item["explanation"]))
-            lines.append("")
+        now = datetime.datetime.now()
+        path = self.cwd / "quiz_{}.txt".format(now.strftime("%Y%m%d_%H%M%S"))
+        body = core.format_result_text(
+            self.theme_name, self.diff_name, self.score,
+            self.questions, self.picks, now=now)
         try:
-            path.write_text("\n".join(lines), encoding="utf-8")
+            path.write_text(body, encoding="utf-8")
         except OSError as exc:
             self._fail("保存失敗", "保存できません: {}".format(exc))
             return None

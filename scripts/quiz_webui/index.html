@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="quiz-token" content="__QUIZ_TOKEN__">
+<meta name="color-scheme" content="dark">
+<title>Geminiクイズ — Rich Edition</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<canvas id="fx" aria-hidden="true"></canvas>
+<div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">Q</span>
+    <div>
+      <h1>Geminiクイズ</h1>
+      <p class="tag">RICH EDITION</p>
+    </div>
+  </div>
+  <div class="hud">
+    <span id="quotaBadge" class="badge">残量 確認中…</span>
+    <button id="btnQuit" class="ghost" type="button" title="サーバを終了">終了</button>
+  </div>
+</header>
+
+<main>
+  <section id="screen-setup" class="screen active glass">
+    <h2 class="screen-title">出題を設定</h2>
+    <label class="field">
+      <span class="field-label">テーマ（空でおまかせ）</span>
+      <input id="themeInput" type="text" maxlength="60" placeholder="例: 宇宙 / 日本史 / ことば" autocomplete="off">
+    </label>
+
+    <div class="field">
+      <span class="field-label">設問数</span>
+      <div class="num-row">
+        <button id="btnNumMinus" class="stepper" type="button" aria-label="減らす">−</button>
+        <output id="numValue">5</output>
+        <button id="btnNumPlus" class="stepper" type="button" aria-label="増やす">＋</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="field-label">難易度</span>
+      <div id="diffGroup" class="segmented" role="radiogroup" aria-label="難易度"></div>
+    </div>
+
+    <button id="btnStart" class="primary" type="button">開始</button>
+    <p id="setupStatus" class="status">準備完了。難易度はいつでも変更できます。</p>
+  </section>
+
+  <section id="screen-loading" class="screen glass">
+    <div class="orbit" aria-hidden="true"><span></span><span></span><span></span></div>
+    <h2 id="loadStatus" class="screen-title">出題を生成中…</h2>
+    <p id="loadMeta" class="muted"></p>
+    <div class="metrics" role="status" aria-live="polite">
+      <div class="metric"><span class="metric-label">経過</span><output id="loadElapsed">0秒</output></div>
+      <div class="metric"><span class="metric-label">目安最大</span><output id="loadEstimate">—</output></div>
+    </div>
+    <p id="loadRetry" class="retry" hidden>再試行中…</p>
+    <button id="btnCancelLoad" class="ghost" type="button">やめる</button>
+  </section>
+
+  <section id="screen-quiz" class="screen glass">
+    <div class="quiz-head">
+      <span id="qIndex" class="q-index">Q1/5</span>
+      <span id="qMeta" class="q-meta"></span>
+      <button id="btnQuitQuiz" class="ghost small" type="button">やめる</button>
+    </div>
+    <div class="progress" aria-hidden="true"><div id="qProgressFill" class="progress-fill"></div></div>
+    <h2 id="qText" class="q-text"></h2>
+    <div id="choices" class="choices" role="group" aria-label="選択肢"></div>
+    <p id="feedback" class="feedback" aria-live="polite"></p>
+    <div id="explainBox" class="explain" hidden>
+      <span class="explain-label">解説</span>
+      <p id="explainText"></p>
+    </div>
+    <div class="quiz-foot">
+      <span id="scoreNow" class="score-now">スコア 0</span>
+      <button id="btnNext" class="primary" type="button" disabled>次の問題へ</button>
+    </div>
+  </section>
+
+  <section id="screen-result" class="screen glass">
+    <h2 class="screen-title">結果</h2>
+    <div class="ring-wrap">
+      <svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
+        <circle class="ring-bg" cx="60" cy="60" r="52"></circle>
+        <circle id="ringFg" class="ring-fg" cx="60" cy="60" r="52"></circle>
+      </svg>
+      <div class="ring-center">
+        <output id="resultScore" class="ring-score">0/0</output>
+        <span id="resultRate" class="ring-rate">0%</span>
+      </div>
+    </div>
+    <p id="resultComment" class="comment"></p>
+    <div class="result-actions">
+      <label class="inline-field">
+        <span>再戦の難易度</span>
+        <select id="replayDiff"></select>
+      </label>
+      <button id="btnReplay" class="primary" type="button">同じテーマで別セット</button>
+      <button id="btnSave" class="secondary" type="button">結果を保存</button>
+      <button id="btnBackSetup" class="ghost" type="button">設定に戻る</button>
+    </div>
+    <p id="savedPath" class="saved"></p>
+  </section>
+</main>
+
+<footer class="hint">キーボード: 1-4 で回答 / Enter で次へ</footer>
+<div id="toast" class="toast" role="alert"></div>
+
+<script src="/app.js" defer></script>
+</body>
+</html>

@@ -233,6 +233,31 @@ def comment_for(score, total, theme="", diff=""):
         s=score, t=total, topic=topic, lv=level)
 
 
+def format_result_text(theme, diff_name, score, questions, picks, now=None):
+    """結果を保存用テキストに整形する。GUI/Web/CLIで共有する単一正本。
+    theme: テーマ名 / diff_name: 難易度表示名 / score: 正解数
+    questions: 正規化済みの問リスト / picks: 各問の選択index / now: datetime（省略時は現在）"""
+    import datetime
+    stamp = (now or datetime.datetime.now()).strftime("%Y-%m-%d %H:%M")
+    lines = [
+        "Geminiクイズ結果 {}".format(stamp),
+        "テーマ: {} / 難易度: {} / スコア: {}/{}".format(
+            theme, diff_name, score, len(questions)),
+        "",
+    ]
+    for i, (item, picked) in enumerate(zip(questions, picks), 1):
+        mark = "正解" if picked == item["answer"] else "不正解"
+        lines.append("Q{}: {}".format(i, item["q"]))
+        for n, choice in enumerate(item["choices"], 1):
+            lines.append("  {}. {}".format(n, choice))
+        lines.append("  回答: {} / 正解: {} → {}".format(
+            picked + 1, item["answer"] + 1, mark))
+        if item["explanation"]:
+            lines.append("  解説: {}".format(item["explanation"]))
+        lines.append("")
+    return "\n".join(lines)
+
+
 def main():
     safe_console()
     parser = argparse.ArgumentParser(description="Geminiおまかせクイズゲーム")
@@ -250,7 +275,8 @@ def main():
     quota = ask_quota(agy)
     five = quota.get("gemini_5h")
     if five is not None and five <= QUOTA_STOP_THRESHOLD:
-        print("残量{}%のため開始しません（7%以下は停止）。またの機会に。".format(five))
+        print("残量{}%のため開始しません（{}%以下は停止）。またの機会に。".format(
+            five, QUOTA_STOP_THRESHOLD))
         return 2
     if five is not None:
         print("残量{}%。遊びましょう。".format(five))
