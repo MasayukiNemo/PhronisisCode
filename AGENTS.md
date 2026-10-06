@@ -41,3 +41,7 @@
 
 詳細は `shared/phronisis_code/orchestration_flow_code.md` を参照。
 完了宣言は「自己検証80%（brief必須項目の通過率）+ Hayato PASS/WARN」で成立する。
+
+## Orca（任意）
+
+Orcaを使う場合: `docs/orca/README.md`（任意・Orca非必須）。Orcaのモデルは起動時に指定し、本体の既定モデルは変えない。
