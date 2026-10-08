@@ -17,5 +17,6 @@ build/
 tasks/*/poc/samples/
 tasks/*/poc/out/
 tasks/*/poc/out_tmp/
+tasks/*/poc2/out/
 # Drive同期用 (音声・出力物。コミットしない)
 Gdrive_code/
