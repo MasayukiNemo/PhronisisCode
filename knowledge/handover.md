@@ -30,8 +30,10 @@ hooks/                              # pre-commit/pre-push + python_run.sh/utf8_c
 |------|---------|------|
 | 2026-08-23 | PhronisisCode創設 | PhronisisCoreから分岐。6神プール/L2.5維持/Hayatoゲート4点チェック/再アンカー機構を設計。Hayatoレビュー9本→6点補正、深層思考で軽さは判断回数と検証。独立進化方針で確定。 |
 | 2026-08-23 | 大規模レビュー+修正 | 6視点レビュー（Gaia/Hermes/Daedalus/Metis/Yuna/Hayato）でP0 3点（パス/ hooks/ 6神profile）を検出。深層思考でfast-pathとdrift自動化を見送り7点に絞って修正。Hayato二巡目で残BLOCK（utf8_check/テンプレート残骸）を検出し再修正。 |
+| 2026-10-06 | Orca駆動版（Orca導線＋クイズ リッチWeb UI版） | `docs/orca/README.md`（任意のOrca導線）＋AGENTS.mdに1行導線。実タスク=クイズのリッチWeb UI版をworker（opencode）がフルフロー＋Hayatoゲートで完走（flow_test 36/36・実agy E2E）。追いで起動bat/README/exe手順を追加。Core側のKaiがOrca経由でworkerを駆動（モード2）。モードの理解はCoreの `knowledge/decisions/phronisiscode_orca_two_modes.md`。詳細 `knowledge/session_log/20261006_orca_driven.md` |
 
 ## 残課題
 
-- 初回タスクでの実戦検証
 - 本家からの有益な改善の手動取り込みルールの運用確認
+- Orca導線: 実運用の摩擦（opencode readiness timeout・自動更新での中断）。テストはfreeモデルを既定にする（Core側の規律）
+- リッチWeb UI版の実機確認（リッチな見た目・マウス完走）は根本さん側
