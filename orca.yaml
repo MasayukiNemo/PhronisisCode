@@ -1,0 +1,10 @@
+# Orca リポジトリ設定（任意・Orca非導入端末では無視される）
+#
+# worktree.sharedDirectories: 各worktreeで複製せず、primary checkoutから
+# symlink/共有するgitignore済ディレクトリを宣言する。
+# `.opencode/node_modules`（opencodeのプラグイン依存・約52MB×worktree）を
+# 共有することで、worktreeごとの重複を排除する。
+# 背景: knowledge/decisions/worktree_overhead_policy.md
+worktree:
+  sharedDirectories:
+    - .opencode/node_modules
