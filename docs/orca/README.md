@@ -47,6 +47,7 @@ Orcaの世界観は「worktreeは使い捨て・権限yolo・会話はOrca側（
 - モデル分け: worker＝安いモデル、司令＝通常モデル。per-task / per-roleで分ける
 - worktreeは `C:\Users\<user>\orca\workspaces\<repo>\<name>` に作られる
 - 共有ディレクトリ（`.opencode/node_modules`）は junction で共有される。worktree削除は `orca worktree rm` を使う（生の再帰削除はjunctionを辿りリンク先を消す恐れ）。詳細: `knowledge/decisions/worktree_overhead_policy.md`
+- 点検: `python scripts/orca_worktree_audit.py`（primaryの有無と各worktreeの共有状態を確認。未共有なら exit 1。`--fix` で primary に用意）
 
 ## ロールアウト
 
