@@ -28,6 +28,7 @@ PhronisisCodeは判断フロー（課題確定→前提検証+トライアング
 4. workerのモデルは起動時に指定する（`opencode -m provider/model`）。本体 `opencode.json` の既定モデルは変えない（非Orca端末のKaiの知能を下げないため）
 5. Orcaの権限を Manual に倒す（Settings → Agents → Agent Permissions）。Orcaの既定は権限バイパス（yolo）
 6. git identityはcloneに引き継がれない。このcloneにローカル設定する（`git config user.name/email`）
+7. worktreeの重複排除（任意・推奨）: `orca.yaml` の `worktree.sharedDirectories` が `.opencode/node_modules`（worktreeごとに約52MB展開される）を共有する。Orcaの仕様で「primary checkout に実在するgitignore済ディレクトリ」のみ共有されるため、**このcloneの primary に `.opencode/node_modules` を用意**しておく（opencodeを1回起動するか、`~/.config/opencode/node_modules` をコピー）。無い端末では共有されず各worktreeで52MB複製される（警告は出ない）。背景: `knowledge/decisions/worktree_overhead_policy.md`
 
 ## 原則: Orcaの作法に呑まれない
 
@@ -45,6 +46,7 @@ Orcaの世界観は「worktreeは使い捨て・権限yolo・会話はOrca側（
 - opencodeのreadiness検出はタイムアウトしうる（Orcaの監督下worker）。コーディネータは「worktree作成＋terminal send」で直接駆動すると安定する
 - モデル分け: worker＝安いモデル、司令＝通常モデル。per-task / per-roleで分ける
 - worktreeは `C:\Users\<user>\orca\workspaces\<repo>\<name>` に作られる
+- 共有ディレクトリ（`.opencode/node_modules`）は junction で共有される。worktree削除は `orca worktree rm` を使う（生の再帰削除はjunctionを辿りリンク先を消す恐れ）。詳細: `knowledge/decisions/worktree_overhead_policy.md`
 
 ## ロールアウト
 
