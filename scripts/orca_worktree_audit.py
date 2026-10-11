@@ -66,6 +66,8 @@ def main() -> int:
     ap.add_argument("--repo", default=os.getcwd())
     ap.add_argument("--workspaces", default=str(Path.home() / "orca" / "workspaces"))
     ap.add_argument("--fix", action="store_true", help="primary に .opencode/node_modules を用意")
+    ap.add_argument("--reflect", metavar="TARGET_REPO", default=None,
+                    help="成果物の正本repo。各worktreeの tasks/* が正本に無ければ検出（未反映）")
     args = ap.parse_args()
 
     repo = Path(args.repo).resolve()
@@ -100,10 +102,27 @@ def main() -> int:
             problems += 1
             print(f"  - {wt.name}: 複製(未共有・{mb(dir_size_bytes(nm))}) ★要確認（共有が効いていない）")
 
+    if args.reflect:
+        target = Path(args.reflect).resolve()
+        target_tasks = target / "tasks"
+        print(f"reflect   : worktree の tasks/* を正本 {target_tasks} と照合")
+        if not target_tasks.is_dir():
+            print(f"  [警告] 正本 {target_tasks} が無い。--reflect のパスを確認")
+        for wt in sorted(p for p in ws_root.iterdir() if p.is_dir()):
+            wt_tasks = wt / "tasks"
+            if not wt_tasks.is_dir():
+                continue
+            for task in sorted(p for p in wt_tasks.iterdir() if p.is_dir()):
+                if task.name == "_template":
+                    continue
+                if not (target_tasks / task.name).exists():
+                    problems += 1
+                    print(f"  - {wt.name}: tasks/{task.name} が正本に未反映 ★（コピーしてコミットせよ）")
+
     if problems:
-        print(f"\n判定: 要確認 {problems} 件（共有が効いていない worktree / primary欠落）")
+        print(f"\n判定: 要確認 {problems} 件（共有未適用のworktree / primary欠落 / 成果物の未反映）")
         return 1
-    print("\n判定: OK（primaryあり・全worktreeで共有）")
+    print("\n判定: OK（primaryあり・全worktreeで共有・成果物は正本へ反映済み）")
     return 0
 
 

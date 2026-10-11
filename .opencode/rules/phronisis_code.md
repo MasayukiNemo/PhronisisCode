@@ -114,14 +114,14 @@ Hayatoの指摘の扱い:
 - gitで同期する。変更したら即push、作業開始前に必ずpull
 - 本家 PhronisisCore とは独立進化する。憲章の正本はそれぞれが持つ。意図的な同期が必要な場合のみ手動でcherry-pickする
 
-## 正本と作業場所（worktree成果物のrepo反映）
+## 正本と作業場所（worktree成果物の正本repo反映）
 
-- 作業は隔離worktree（Orcaのsandbox repo含む）で行ってよい。ただし成果物の正本は durable なリポジトリに置く。
-- Orcaのworktree（例: sandbox `PhronisisCodeOrca` の `goldmine-*` 等）でworkerが生んだ成果物（`tasks/{id}/` 等）は、タスク完了時に本物 `PhronisisCode` リポジトリの対応パスへコピーし、コミットする。
-- worktree・worktreeブランチ・Orcaのtranscriptは正本ではない（使い捨て）。成果物をここに留めない。
-- コピー時は、作業元（sandboxのコミットハッシュ・worktree名）をコミットメッセージに記録する。
-- 完了チェックリストに「worktree成果物の正本repo反映」を追加する。セッション終了（SC）前に未反映がないか確認する。
-- 理由: 2026-10-11、sandbox worktreeの成果物が本物repoにもGitHubにも存在せず、worktree削除で失われる穴が判明（根本さん指摘）。
+- 実タスクのコーディングは、正本リポジトリ `PhronisisCode`（origin=GitHub）で worktree を作る。worktreeブランチを push すれば GitHub に届く（構造的に正本へ到達。規律に依存しない）。
+- 隔離サンドボックス（`PhronisisCodeOrca` 等、origin=ローカルbare）は使い捨ての実験専用。実タスク・成果物を置かない。
+- やむを得ずサンドボックスで作った成果物（`tasks/{id}/` 等）は、完了時に正本 `PhronisisCode` の対応パスへコピーしてコミットする（作業元のコミット・worktree名を記録）。未反映のまま完了宣言しない。
+- worktree・worktreeブランチ・Orca transcriptは正本ではない（使い捨て）。
+- 点検: `python scripts/orca_worktree_audit.py --reflect <正本repo>`（worktreeの `tasks/*` が正本に未反映なら検出）。
+- 経緯: 2026-10-11、sandbox worktreeの成果物が本物repoにもGitHubにも無く、worktree削除で失われる穴が判明（根本さん指摘）。
 
 ## Git安全運用
 

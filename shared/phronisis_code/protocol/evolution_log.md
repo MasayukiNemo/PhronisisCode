@@ -45,4 +45,5 @@
 - 既存の `docs/orca/README.md` §原則は「knowledge/session_logはrepoのgitに持続する」とするが、それは「Orcaのrepo＝本物repo」を前提にしており、sandboxを使うと崩れる
 - 追加: 憲章に「正本と作業場所（worktree成果物のrepo反映）」節。worktree成果物は完了時に本物PhronisisCodeへコピーしてコミット。worktree/ブランチ/transcriptは正本ではない。完了チェックリスト＋SC前確認に反映項目を追加
 - `docs/orca/README.md` §原則にも同旨を追記
-- 併せて既存の2成果物を本物repoへ反映（本コミット）
+- 併せて既存の2成果物を本物repoへ反映
+- Hayatoレビュー反映（同日）: 仕組みゼロ・チェックリストが空手形・コピーは対症（原因はsandbox originがローカルbare）等の指摘を受け、(1)構造的fixを第一原則に（実タスクは origin=GitHub の本物 `PhronisisCode` で worktree を作る／sandboxは実験専用）、(2)点検ツール `scripts/orca_worktree_audit.py --reflect <正本repo>` を追加（worktreeの `tasks/*` 未反映を検出）、(3)記述を1箇所正本＋参照に痩せさせた
