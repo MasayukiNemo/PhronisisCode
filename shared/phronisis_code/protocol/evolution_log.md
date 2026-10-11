@@ -38,3 +38,11 @@
 - 検証: agy 1.2.2でquota（gemini_5h 100%）/ask疎通、health 5/5、Daedalus致命傷なし・Metis条件付承認（文書補足で解消）
 - 残存リスク: skip-permissionsの読み取り範囲（.env等）は運用限定（ask混ぜ物禁止・out限定・7%以下手動停止）で受容、知見に明記
 - conduct追記 (2026-09-13): orchestration_flow_code.md末尾に「外部AI活用（agy）」節を新設。呼出主体Kai・ask限定局面・Hermes優先・quota停止時記録・log書式を定義。知見は手順詳細に一本化
+
+## 正本と作業場所ルール（2026-10-11・根本さん指摘）
+
+- 穴: sandbox（`PhronisisCodeOrca`）のOrca worktreeでworkerが生んだ成果物（`tasks/261010_goldmine_bt` / `261011_goldmine_cbot`）が、本物 `PhronisisCode` にもGitHubにも存在せず、worktree削除で失われる状態になっていた
+- 既存の `docs/orca/README.md` §原則は「knowledge/session_logはrepoのgitに持続する」とするが、それは「Orcaのrepo＝本物repo」を前提にしており、sandboxを使うと崩れる
+- 追加: 憲章に「正本と作業場所（worktree成果物のrepo反映）」節。worktree成果物は完了時に本物PhronisisCodeへコピーしてコミット。worktree/ブランチ/transcriptは正本ではない。完了チェックリスト＋SC前確認に反映項目を追加
+- `docs/orca/README.md` §原則にも同旨を追記
+- 併せて既存の2成果物を本物repoへ反映（本コミット）

@@ -38,6 +38,7 @@ Orcaの世界観は「worktreeは使い捨て・権限yolo・会話はOrca側（
 - Hayatoゲート（4点バイナリ）を通す
 - knowledge / session_log は repo の git に持続する（worktreeの使い捨てに流されない）
 - Orcaの transcript を正本にしない。判断の正本は repo 側に書く
+- 成果物（`tasks/{id}/` 等）を worktree に留めない。sandbox（例: `PhronisisCodeOrca`）で作った場合は、完了時に本物 `PhronisisCode` の対応パスへコピーしてコミットする（作業元のworktree名・コミットを記録）。worktreeブランチは正本ではない。詳細は憲章「正本と作業場所（worktree成果物のrepo反映）」
 - 権限はManualを維持する
 
 ## 運用メモ（実測の摩擦）

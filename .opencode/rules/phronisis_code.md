@@ -114,6 +114,15 @@ Hayatoの指摘の扱い:
 - gitで同期する。変更したら即push、作業開始前に必ずpull
 - 本家 PhronisisCore とは独立進化する。憲章の正本はそれぞれが持つ。意図的な同期が必要な場合のみ手動でcherry-pickする
 
+## 正本と作業場所（worktree成果物のrepo反映）
+
+- 作業は隔離worktree（Orcaのsandbox repo含む）で行ってよい。ただし成果物の正本は durable なリポジトリに置く。
+- Orcaのworktree（例: sandbox `PhronisisCodeOrca` の `goldmine-*` 等）でworkerが生んだ成果物（`tasks/{id}/` 等）は、タスク完了時に本物 `PhronisisCode` リポジトリの対応パスへコピーし、コミットする。
+- worktree・worktreeブランチ・Orcaのtranscriptは正本ではない（使い捨て）。成果物をここに留めない。
+- コピー時は、作業元（sandboxのコミットハッシュ・worktree名）をコミットメッセージに記録する。
+- 完了チェックリストに「worktree成果物の正本repo反映」を追加する。セッション終了（SC）前に未反映がないか確認する。
+- 理由: 2026-10-11、sandbox worktreeの成果物が本物repoにもGitHubにも存在せず、worktree削除で失われる穴が判明（根本さん指摘）。
+
 ## Git安全運用
 
 - gitへの書き込みはKaiのみが行う
