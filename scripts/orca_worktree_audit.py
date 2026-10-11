@@ -115,6 +115,11 @@ def main() -> int:
     args = ap.parse_args()
 
     repo = Path(args.repo).resolve()
+    ws_root = Path(args.workspaces) / repo.name
+
+    if args.reflect:
+        return reflect_check(ws_root, Path(args.reflect).resolve())
+
     primary_nm = repo / ".opencode" / "node_modules"
     config_nm = Path.home() / ".config" / "opencode" / "node_modules"
 
@@ -128,11 +133,6 @@ def main() -> int:
         if args.fix:
             if ensure_primary(primary_nm, config_nm):
                 problems -= 1
-
-    ws_root = Path(args.workspaces) / repo.name
-
-    if args.reflect:
-        return reflect_check(ws_root, Path(args.reflect).resolve())
 
     if not ws_root.is_dir():
         print(f"worktrees : {ws_root} が無い（Orca worktree未作成）")
