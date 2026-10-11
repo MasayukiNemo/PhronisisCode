@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文字数カウンタ</title>
+<style>
+:root { color-scheme: light dark; }
+* { box-sizing: border-box; }
+body {
+  font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+  margin: 0;
+  padding: 24px 16px 48px;
+  line-height: 1.6;
+}
+main { max-width: 720px; margin: 0 auto; }
+h1 { font-size: 1.4rem; margin: 0 0 12px; }
+textarea {
+  width: 100%;
+  min-height: 220px;
+  padding: 12px;
+  font-size: 1rem;
+  line-height: 1.7;
+  border: 1px solid #999;
+  border-radius: 8px;
+  resize: vertical;
+}
+.controls { display: flex; gap: 12px; align-items: center; margin: 12px 0 20px; }
+button {
+  padding: 8px 20px;
+  font-size: 1rem;
+  border: 1px solid #666;
+  border-radius: 8px;
+  background: #f0f0f0;
+  cursor: pointer;
+}
+button:hover { background: #e2e2e2; }
+dl.stats {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 16px;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid #999;
+  border-radius: 8px;
+}
+dl.stats dt { margin: 0; }
+dl.stats dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: bold; text-align: right; }
+.notes { margin-top: 16px; font-size: 0.85rem; color: #555; }
+@media (prefers-color-scheme: dark) {
+  .notes { color: #bbb; }
+  button { background: #333; color: #fff; border-color: #888; }
+  button:hover { background: #444; }
+}
+</style>
+</head>
+<body>
+<main>
+<h1>文字数カウンタ</h1>
+<label for="input">テキスト入力</label>
+<textarea id="input" placeholder="ここにテキストを入力してください" autofocus></textarea>
+<div class="controls">
+<button type="button" id="clear">クリア</button>
+</div>
+<dl class="stats" aria-live="polite">
+<dt>文字数（改行含む）</dt><dd id="withNl">0</dd>
+<dt>文字数（改行含まない）</dt><dd id="withoutNl">0</dd>
+<dt>行数</dt><dd id="lines">0</dd>
+<dt>空白除外文字数</dt><dd id="noSpace">0</dd>
+<dt>全角文字数</dt><dd id="full">0</dd>
+<dt>半角文字数</dt><dd id="half">0</dd>
+</dl>
+<div class="notes">
+<p>集計定義: 改行（CR・LF・CRLF）はいずれも1文字。空白除外は正規表現 \s（半角空白・タブ・改行・全角空白を含む）を除いた文字数。絵文字などはコードポイント単位（見た目1文字が複数になる場合あり）。全角はU+0080以上の文字（半角カナU+FF61～U+FF9Fは半角に補正）、半角はそれ以外。行数は空欄→0。</p>
+<p>単一HTML・外部参照なし・オフライン動作。</p>
+</div>
+</main>
+<script>
+"use strict";
+function countText(text) {
+  var normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  var withNl = Array.from(normalized).length;
+  var withoutNl = Array.from(normalized.replace(/\n/g, "")).length;
+  var lines = text === "" ? 0 : normalized.split("\n").length;
+  var noSpace = Array.from(text.replace(/\s/g, "")).length;
+  var full = 0;
+  var half = 0;
+  Array.from(normalized).forEach(function (ch) {
+    var cp = ch.codePointAt(0);
+    var isHankakuKana = cp >= 0xFF61 && cp <= 0xFF9F;
+    if (cp >= 0x80 && !isHankakuKana) {
+      full += 1;
+    } else {
+      half += 1;
+    }
+  });
+  return { withNl: withNl, withoutNl: withoutNl, lines: lines, noSpace: noSpace, full: full, half: half };
+}
+function render() {
+  var text = document.getElementById("input").value;
+  var r = countText(text);
+  document.getElementById("withNl").textContent = r.withNl;
+  document.getElementById("withoutNl").textContent = r.withoutNl;
+  document.getElementById("lines").textContent = r.lines;
+  document.getElementById("noSpace").textContent = r.noSpace;
+  document.getElementById("full").textContent = r.full;
+  document.getElementById("half").textContent = r.half;
+}
+document.getElementById("input").addEventListener("input", render);
+document.getElementById("clear").addEventListener("click", function () {
+  var ta = document.getElementById("input");
+  ta.value = "";
+  render();
+  ta.focus();
+});
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>文字数カウンタ</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --panel: #ffffff;
+    --text: #1f2430;
+    --muted: #6b7280;
+    --border: #d9dde3;
+    --accent: #2563eb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16181d;
+      --panel: #1f2229;
+      --text: #e8eaee;
+      --muted: #9aa1ad;
+      --border: #333842;
+      --accent: #60a5fa;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN",
+      "Noto Sans JP", Meiryo, sans-serif;
+    line-height: 1.5;
+  }
+  main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px 16px 40px;
+  }
+  h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin: 0 0 16px;
+  }
+  textarea {
+    width: 100%;
+    min-height: 260px;
+    resize: vertical;
+    padding: 14px;
+    font: inherit;
+    font-size: 1rem;
+    color: var(--text);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    outline: none;
+  }
+  textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+  }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .stat {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .stat .label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .stat .value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat .value .unit {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--muted);
+    margin-left: 2px;
+  }
+  .note {
+    margin: 16px 0 0;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>文字数カウンタ</h1>
+  <textarea id="text" placeholder="ここにテキストを入力または貼り付け（入力はこの端末内だけで処理されます）" spellcheck="false" autofocus></textarea>
+
+  <section class="stats">
+    <div class="stat">
+      <span class="label">文字数（改行含む）</span>
+      <span class="value"><span id="c-total">0</span><span class="unit">文字</span></span>
+    </div>
+    <div class="stat">
+      <span class="label">文字数（改行含まない）</span>
+      <span class="value"><span id="c-nonewline">0</span><span class="unit">文字</span></span>
+    </div>
+    <div class="stat">
+      <span class="label">行数</span>
+      <span class="value"><span id="c-lines">0</span><span class="unit">行</span></span>
+    </div>
+    <div class="stat">
+      <span class="label">空白を除く文字数</span>
+      <span class="value"><span id="c-nospace">0</span><span class="unit">文字</span></span>
+    </div>
+    <div class="stat">
+      <span class="label">全角</span>
+      <span class="value"><span id="c-full">0</span><span class="unit">文字</span></span>
+    </div>
+    <div class="stat">
+      <span class="label">半角</span>
+      <span class="value"><span id="c-half">0</span><span class="unit">文字</span></span>
+    </div>
+  </section>
+
+  <p class="note">
+    文字数はコードポイント単位で数えます（絵文字や結合文字は複数と数える場合があります）。
+    全角＋半角＝「文字数（改行含む）」です。改行・タブ・半角スペース・全角スペースは「空白を除く文字数」から外し、
+    全角／半角の内訳では改行・タブを半角に数えます。空入力の行数は0、末尾の改行は空行として数えます。
+  </p>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  function isFullWidth(cp) {
+    return (
+      (cp >= 0x1100 && cp <= 0x115f) ||
+      (cp >= 0x2e80 && cp <= 0x303e) ||
+      (cp >= 0x3041 && cp <= 0x33ff) ||
+      (cp >= 0x3400 && cp <= 0x4dbf) ||
+      (cp >= 0x4e00 && cp <= 0x9fff) ||
+      (cp >= 0xa000 && cp <= 0xa4cf) ||
+      (cp >= 0xac00 && cp <= 0xd7a3) ||
+      (cp >= 0xf900 && cp <= 0xfaff) ||
+      (cp >= 0xfe10 && cp <= 0xfe19) ||
+      (cp >= 0xfe30 && cp <= 0xfe6f) ||
+      (cp >= 0xff01 && cp <= 0xff60) ||
+      (cp >= 0xffe0 && cp <= 0xffe6) ||
+      (cp >= 0x1f300 && cp <= 0x1faff) ||
+      (cp >= 0x20000 && cp <= 0x3fffd)
+    );
+  }
+
+  function analyze(text) {
+    var chars = Array.from(text);
+    var total = chars.length;
+    var noNewline = 0;
+    var noSpace = 0;
+    var full = 0;
+    var half = 0;
+    for (var i = 0; i < chars.length; i++) {
+      var ch = chars[i];
+      if (ch !== "\n" && ch !== "\r") noNewline++;
+      if (!/\s/.test(ch)) noSpace++;
+      if (isFullWidth(ch.codePointAt(0))) full++;
+      else half++;
+    }
+    var lines = text.length === 0 ? 0 : text.split(/\r\n|\r|\n/).length;
+    return {
+      total: total,
+      noNewline: noNewline,
+      lines: lines,
+      noSpace: noSpace,
+      full: full,
+      half: half
+    };
+  }
+
+  var textEl = document.getElementById("text");
+  var outputs = {
+    total: document.getElementById("c-total"),
+    noNewline: document.getElementById("c-nonewline"),
+    lines: document.getElementById("c-lines"),
+    noSpace: document.getElementById("c-nospace"),
+    full: document.getElementById("c-full"),
+    half: document.getElementById("c-half")
+  };
+
+  function format(n) {
+    return n.toLocaleString("ja-JP");
+  }
+
+  function render() {
+    var r = analyze(textEl.value);
+    outputs.total.textContent = format(r.total);
+    outputs.noNewline.textContent = format(r.noNewline);
+    outputs.lines.textContent = format(r.lines);
+    outputs.noSpace.textContent = format(r.noSpace);
+    outputs.full.textContent = format(r.full);
+    outputs.half.textContent = format(r.half);
+  }
+
+  var scheduled = false;
+  function schedule() {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(function () {
+      scheduled = false;
+      render();
+    });
+  }
+
+  textEl.addEventListener("input", schedule);
+  render();
+})();
+</script>
+</body>
+</html>
