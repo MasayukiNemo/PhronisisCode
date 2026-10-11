@@ -20,6 +20,7 @@ worktree ごとに約52MBを複製する。このスクリプトはその「サ�
 import argparse
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -61,6 +62,49 @@ def ensure_primary(primary_nm: Path, config_nm: Path) -> bool:
     return True
 
 
+def reflect_check(ws_root: Path, target: Path) -> int:
+    """worktree の tasks/* が正本repoに反映されているか、正本がpush済みかを点検する。"""
+    target_tasks = target / "tasks"
+    problems = 0
+    print(f"正本      : {target}  (tasks: {target_tasks})")
+    print(f"worktrees : {ws_root}")
+    if not ws_root.is_dir():
+        print("  worktrees が無い（Orca worktree未作成）")
+    else:
+        if not target_tasks.is_dir():
+            print(f"  [警告] 正本 {target_tasks} が無い。--reflect のパスを確認")
+        for wt in sorted(p for p in ws_root.iterdir() if p.is_dir()):
+            wt_tasks = wt / "tasks"
+            if not wt_tasks.is_dir():
+                continue
+            for task in sorted(p for p in wt_tasks.iterdir() if p.is_dir()):
+                if task.name == "_template":
+                    continue
+                if not (target_tasks / task.name).exists():
+                    problems += 1
+                    print(f"  - {wt.name}: tasks/{task.name} が正本に未反映 ★（コピーしてコミットせよ）")
+    # 正本側: tasks/ に未pushのコミットが無いか（durable = GitHub正本へ到達しているか）
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(target), "log", "--all", "--not", "--remotes",
+             "--oneline", "--", "tasks/"],
+            capture_output=True, text=True, timeout=30)
+        unpushed = [ln for ln in out.stdout.splitlines() if ln.strip()]
+        if unpushed:
+            problems += 1
+            print(f"  - 正本 {target.name}: tasks/ に未pushコミット {len(unpushed)} 件 ★（pushせよ）")
+            for ln in unpushed[:5]:
+                print(f"      {ln}")
+    except Exception as e:
+        print(f"  [警告] 正本の未push判定に失敗: {e}")
+
+    if problems:
+        print(f"\n判定: 要確認 {problems} 件（worktree成果物の未反映 / 正本の未push）")
+        return 1
+    print("\n判定: OK（worktree成果物は正本へ反映済み・正本はpush済み）")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo", default=os.getcwd())
@@ -86,6 +130,10 @@ def main() -> int:
                 problems -= 1
 
     ws_root = Path(args.workspaces) / repo.name
+
+    if args.reflect:
+        return reflect_check(ws_root, Path(args.reflect).resolve())
+
     if not ws_root.is_dir():
         print(f"worktrees : {ws_root} が無い（Orca worktree未作成）")
         return 1 if problems else 0
@@ -102,27 +150,10 @@ def main() -> int:
             problems += 1
             print(f"  - {wt.name}: 複製(未共有・{mb(dir_size_bytes(nm))}) ★要確認（共有が効いていない）")
 
-    if args.reflect:
-        target = Path(args.reflect).resolve()
-        target_tasks = target / "tasks"
-        print(f"reflect   : worktree の tasks/* を正本 {target_tasks} と照合")
-        if not target_tasks.is_dir():
-            print(f"  [警告] 正本 {target_tasks} が無い。--reflect のパスを確認")
-        for wt in sorted(p for p in ws_root.iterdir() if p.is_dir()):
-            wt_tasks = wt / "tasks"
-            if not wt_tasks.is_dir():
-                continue
-            for task in sorted(p for p in wt_tasks.iterdir() if p.is_dir()):
-                if task.name == "_template":
-                    continue
-                if not (target_tasks / task.name).exists():
-                    problems += 1
-                    print(f"  - {wt.name}: tasks/{task.name} が正本に未反映 ★（コピーしてコミットせよ）")
-
     if problems:
-        print(f"\n判定: 要確認 {problems} 件（共有未適用のworktree / primary欠落 / 成果物の未反映）")
+        print(f"\n判定: 要確認 {problems} 件（共有未適用のworktree / primary欠落）")
         return 1
-    print("\n判定: OK（primaryあり・全worktreeで共有・成果物は正本へ反映済み）")
+    print("\n判定: OK（primaryあり・全worktreeで共有）")
     return 0
 
 
