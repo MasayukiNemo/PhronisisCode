@@ -60,5 +60,13 @@ health check: python scripts/code_health_check.py --no-color → 5/5 PASS（ALL 
 - 修正: デモ/実弾判定を `Account.IsLive`（bool）に変更（`Account.IsLive==true` で ABORT→Stop）。startログにも IsLive を追加。
 - 再ビルド: 0エラー / 0警告。コンパイル検証 PASS。
 
+## Kai追記（実機フィードバック・BadVolume修正・2026-10-11）
+
+- 実機（cTraderデモ・Account 8066655）で EnableOrder=true を実行 → `Executing Market Order to Buy 0.01 EURUSD` が `BadVolume` で失敗。
+- 原因: cAlgo `ExecuteMarketOrder` の volume は units（通貨単位）であり lot ではない。0.01 を units として渡したため最小未満。
+- 修正: `Symbol.QuantityToVolumeInUnits(Volume)` で lots→units に変換し、`Symbol.NormalizeVolumeInUnits(..., RoundingMode.ToNearest)` で正規化。`Symbol.VolumeInUnitsMin` 未満は SKIP。
+- 併せて probe PASS を確認: IsLive=False（デモ）・Type=Hedged・spread 1.0pip 実測。
+- 再ビルド: 0エラー。
+
 <!-- status: complete | agent: kai -->
 

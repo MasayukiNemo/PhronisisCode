@@ -107,6 +107,15 @@ namespace cAlgo.Robots
                     return;
                 }
 
+                // cAlgo ExecuteMarketOrder takes volume in UNITS, not lots.
+                double volumeInUnits = Symbol.NormalizeVolumeInUnits(Symbol.QuantityToVolumeInUnits(Volume), RoundingMode.ToNearest);
+                if (volumeInUnits < Symbol.VolumeInUnitsMin)
+                {
+                    Print("SKIP: Volume {0} lots -> {1} units is below Symbol.VolumeInUnitsMin ({2}).", Volume, volumeInUnits, Symbol.VolumeInUnitsMin);
+                    _orderAttempted = true;
+                    return;
+                }
+
                 double preBid = Symbol.Bid;
                 double preAsk = Symbol.Ask;
                 double preMid = (preBid + preAsk) / 2.0;
@@ -114,7 +123,7 @@ namespace cAlgo.Robots
                 // Fix to exactly once even if the call throws.
                 _orderAttempted = true;
 
-                TradeResult result = ExecuteMarketOrder(TradeType.Buy, Symbol.Name, Volume, "goldmine-probe", StopLossPips, TakeProfitPips);
+                TradeResult result = ExecuteMarketOrder(TradeType.Buy, Symbol.Name, volumeInUnits, "goldmine-probe", StopLossPips, TakeProfitPips);
 
                 if (result == null)
                 {
@@ -129,8 +138,8 @@ namespace cAlgo.Robots
                         double entry = result.Position.EntryPrice;
                         double slipPrice = entry - preAsk;
                         double slipPips = pipSize != 0 ? slipPrice / pipSize : double.NaN;
-                        Print("Order OK: Buy {0} {1} lots label=goldmine-probe Entry={2} SL={3}pips TP={4}pips PreBid={5} PreAsk={6} PreMid={7} Slippage={8} price ({9:F2} pips)",
-                            Symbol.Name, Volume, entry, StopLossPips, TakeProfitPips, preBid, preAsk, preMid, slipPrice, slipPips);
+                        Print("Order OK: Buy {0} {1} lots ({2} units) label=goldmine-probe Entry={3} SL={4}pips TP={5}pips PreBid={6} PreAsk={7} PreMid={8} Slippage={9} price ({10:F2} pips)",
+                            Symbol.Name, Volume, volumeInUnits, entry, StopLossPips, TakeProfitPips, preBid, preAsk, preMid, slipPrice, slipPips);
                     }
                     else
                     {
