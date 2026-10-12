@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using cAlgo.API;
 using cAlgo.API.Indicators;
@@ -40,8 +41,21 @@ namespace cAlgo.Robots
         [Parameter("Reward:Risk (0 = no take profit)", DefaultValue = 0.0, MinValue = 0.0)]
         public double RewardRisk { get; set; }
 
+        [Parameter("Block entry hours (UTC, comma)", DefaultValue = "12,13,14")]
+        public string BlockedEntryHoursUtc { get; set; }
+
+        [Parameter("ATR trailing stop", DefaultValue = true)]
+        public bool UseTrailing { get; set; }
+
+        [Parameter("Trailing ATR mult", DefaultValue = 2.0, MinValue = 0.1)]
+        public double TrailAtrMult { get; set; }
+
         private AverageTrueRange _atr;
         private SimpleMovingAverage _trend;
+
+        private HashSet<int> _blocked = new HashSet<int>();
+        private double _hwHigh;
+        private double _hwLow = double.MaxValue;
 
         private DateTime _day;
         private double _dayStartEquity;
@@ -60,6 +74,14 @@ namespace cAlgo.Robots
 
                 _atr = Indicators.AverageTrueRange(AtrPeriod, MovingAverageType.Simple);
                 _trend = Indicators.SimpleMovingAverage(Bars.ClosePrices, TrendSmaPeriod);
+
+                _blocked.Clear();
+                if (!string.IsNullOrEmpty(BlockedEntryHoursUtc))
+                    foreach (var tok in BlockedEntryHoursUtc.Split(','))
+                    {
+                        int h;
+                        if (int.TryParse(tok.Trim(), out h) && h >= 0 && h <= 23) _blocked.Add(h);
+                    }
 
                 _day = Server.Time.Date;
                 _dayStartEquity = Account.Equity;
@@ -117,12 +139,14 @@ namespace cAlgo.Robots
                 }
                 if (priorHigh == double.MinValue || priorLow == double.MaxValue) return;
 
-                if (Positions.Find(Label) != null)
+                var openPos = Positions.Find(Label);
+                if (openPos != null)
                 {
-                    ManageExit(Positions.Find(Label), i, close);
+                    UpdateTrailing(openPos, i, atr, close);
                     return;
                 }
                 if (Positions.Count >= MaxPositions) return;
+                if (_blocked.Contains(Server.Time.Hour)) { Print("SKIP entry: hour {0} UTC blocked.", Server.Time.Hour); return; }
 
                 if (close > priorHigh && close > sma)
                     Enter(TradeType.Buy, close, atr, sma);
@@ -158,9 +182,38 @@ namespace cAlgo.Robots
             TradeResult r = ExecuteMarketOrder(side, Symbol.Name, units, Label, stopPips, tpPips);
             if (r == null) { Print("ENTRY FAILED: null result"); return; }
             if (r.IsSuccessful)
+            {
+                _hwHigh = 0.0;
+                _hwLow = double.MaxValue;
                 Print("ENTRY OK: {0} units={1} entry={2}", side, units, (r.Position != null ? r.Position.EntryPrice : 0.0));
+            }
             else
                 Print("ENTRY FAILED: {0}", r.Error);
+        }
+
+        private void UpdateTrailing(Position pos, int i, double atr, double close)
+        {
+            if (!UseTrailing || atr <= 0) return;
+            if (pos.TradeType == TradeType.Buy)
+            {
+                _hwHigh = (_hwHigh <= 0) ? Bars.HighPrices[i] : Math.Max(_hwHigh, Bars.HighPrices[i]);
+                double newSl = _hwHigh - TrailAtrMult * atr;
+                if (newSl > 0 && newSl < close && (pos.StopLoss == null || newSl > pos.StopLoss.Value))
+                {
+                    var tr = ModifyPosition(pos, newSl, null, ProtectionType.Absolute);
+                    if (tr != null && tr.IsSuccessful) Print("TRAIL Buy {0}: high={1} SL->{2}", Symbol.Name, _hwHigh, newSl);
+                }
+            }
+            else
+            {
+                _hwLow = (_hwLow == double.MaxValue) ? Bars.LowPrices[i] : Math.Min(_hwLow, Bars.LowPrices[i]);
+                double newSl = _hwLow + TrailAtrMult * atr;
+                if (newSl > 0 && newSl > close && (pos.StopLoss == null || newSl < pos.StopLoss.Value))
+                {
+                    var tr = ModifyPosition(pos, newSl, null, ProtectionType.Absolute);
+                    if (tr != null && tr.IsSuccessful) Print("TRAIL Sell {0}: low={1} SL->{2}", Symbol.Name, _hwLow, newSl);
+                }
+            }
         }
 
         private void ManageExit(Position pos, int i, double close)
