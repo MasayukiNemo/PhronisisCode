@@ -68,5 +68,13 @@ health check: python scripts/code_health_check.py --no-color → 5/5 PASS（ALL 
 - 併せて probe PASS を確認: IsLive=False（デモ）・Type=Hedged・spread 1.0pip 実測。
 - 再ビルド: 0エラー。
 
+## Kai追記（kill switch修正＋実機運用・2026-10-12）
+
+- 実機（デモ 8066655）で発注成功直後、kill switch が `daily P/L -53 broke -MaxDailyLoss 50` で誤発火（開場3分）。0.01ロットの3分で-53は価格変動では説明できない。
+- 原因の当て: `Max Daily Loss` を口座通貨の絶対額(50)で扱っており、口座規模・通貨に対して桁が合わない。
+- 修正: `Max Daily Loss (%)`（起動時Equityに対する比率、既定1%）に変更（スケール非依存）。起動時に `Asset`/`Balance`/`Equity` と算出した限度額をPrint（-53の正体を次回確定する）。
+- ビルド: 実プロジェクトを `ctrader-cli build "C:\Users\nemom\Documents\cAlgo\Sources\Robots\Phronisis"` でビルド成功（0エラー/0警告）。
+- 運用確定: ソース実パスは `Documents\cAlgo\Sources\Robots\<名前>\<名前>\<名前>.cs`。Kaiが直接書き `ctrader-cli build` で確認、根本さんはcTraderで実行のみ（コピペ廃止）。手順 `knowledge/protocols/ctrader_cbot_workflow.md`（本家Core）。
+
 <!-- status: complete | agent: kai -->
 

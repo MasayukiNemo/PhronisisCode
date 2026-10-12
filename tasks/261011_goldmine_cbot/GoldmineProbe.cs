@@ -22,8 +22,8 @@ namespace cAlgo.Robots
         [Parameter("Max Spread (pips)", DefaultValue = 2.0, MinValue = 0.0)]
         public double MaxSpreadPips { get; set; }
 
-        [Parameter("Max Daily Loss (account ccy)", DefaultValue = 50.0, MinValue = 0.0)]
-        public double MaxDailyLoss { get; set; }
+        [Parameter("Max Daily Loss (%)", DefaultValue = 1.0, MinValue = 0.0)]
+        public double MaxDailyLossPct { get; set; }
 
         // Fire-once guards. Order is attempted only in OnStart, never in OnTick.
         private bool _orderAttempted;
@@ -67,8 +67,8 @@ namespace cAlgo.Robots
                 // 2. Connection / spread probe.
                 double pipSize = Symbol.PipSize;
                 double spreadPips = pipSize != 0 ? Symbol.Spread / pipSize : double.NaN;
-                Print("GoldmineProbe start: Account={0} Broker={1} IsLive={2} Type={3} Balance={4} Symbol={5} Spread={6} SpreadPips={7:F2}",
-                    Account.Number, Account.BrokerName, Account.IsLive, Account.AccountType, Account.Balance, Symbol.Name, Symbol.Spread, spreadPips);
+                Print("GoldmineProbe start: Account={0} Broker={1} IsLive={2} Asset={3} Type={4} Balance={5} Equity={6} Symbol={7} Spread={8} SpreadPips={9:F2}",
+                    Account.Number, Account.BrokerName, Account.IsLive, Account.Asset, Account.AccountType, Account.Balance, Account.Equity, Symbol.Name, Symbol.Spread, spreadPips);
 
                 // Anchor daily P/L to start-of-run equity.
                 if (Server != null)
@@ -76,6 +76,7 @@ namespace cAlgo.Robots
                     _day = Server.Time.Date;
                     _dayStartEquity = Account.Equity;
                     _dayInitialized = true;
+                    Print("Daily loss limit: {0:F2}% of day-start equity {1:F2} = {2:F2} {3}", MaxDailyLossPct, _dayStartEquity, _dayStartEquity * MaxDailyLossPct / 100.0, Account.Asset);
                 }
 
                 // 4. Probe-only default: no order.
@@ -173,11 +174,12 @@ namespace cAlgo.Robots
                 }
 
                 double dailyPnl = Account.Equity - _dayStartEquity;
+                double limit = _dayStartEquity * (MaxDailyLossPct / 100.0);
 
-                if (dailyPnl <= -MaxDailyLoss && !_killSwitched)
+                if (dailyPnl <= -limit && !_killSwitched)
                 {
                     _killSwitched = true;
-                    Print("KILL-SWITCH: daily P/L {0} broke -MaxDailyLoss {1}. Blocking new orders and flattening.", dailyPnl, MaxDailyLoss);
+                    Print("KILL-SWITCH: daily P/L {0:F2} (equity {1:F2} - dayStart {2:F2}) <= -limit {3:F2} ({4}% of dayStart). Blocking new orders and flattening.", dailyPnl, Account.Equity, _dayStartEquity, limit, MaxDailyLossPct);
 
                     try
                     {
