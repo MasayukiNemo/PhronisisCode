@@ -76,5 +76,12 @@ health check: python scripts/code_health_check.py --no-color → 5/5 PASS（ALL 
 - ビルド: 実プロジェクトを `ctrader-cli build "C:\Users\nemom\Documents\cAlgo\Sources\Robots\Phronisis"` でビルド成功（0エラー/0警告）。
 - 運用確定: ソース実パスは `Documents\cAlgo\Sources\Robots\<名前>\<名前>\<名前>.cs`。Kaiが直接書き `ctrader-cli build` で確認、根本さんはcTraderで実行のみ（コピペ廃止）。手順 `knowledge/protocols/ctrader_cbot_workflow.md`（本家Core）。
 
+## Kai追記（-53の正体確定・2026-10-12）
+
+- cBotのログはファイルで残る（Kaiが読める）: `Documents\cAlgo\Data\cBots\<名前>\<instance-guid>-Default\RealTime\log.txt`。
+- 実機ログで判明: 口座通貨は JPY（`Asset=JPY`）、Balance≈103,928 JPY。旧 `Max Daily Loss=50`（絶対額・円）は残高の約0.05%。EURUSD 0.01ロットで1pip≒15円なので、3pip逆行で -45〜-53円 → 誤発火していた。物理的異常ではなく、限度額の桁ミス。
+- 修正後（1%＝1,040 JPY）: 誤発火なし。発注成功（Buy EURUSD 0.01 lots=1000 units、Entry=1.12115、slippage 0）、稼働中。
+- 教訓: 損切りラインは絶対額でなく残高比率で持つ（通貨・口座規模に非依存）。
+
 <!-- status: complete | agent: kai -->
 
