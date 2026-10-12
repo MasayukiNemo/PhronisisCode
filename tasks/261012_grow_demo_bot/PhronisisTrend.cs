@@ -25,6 +25,9 @@ namespace cAlgo.Robots
         [Parameter("Entry lookback (bars)", DefaultValue = 20, MinValue = 2)]
         public int EntryPeriod { get; set; }
 
+        [Parameter("Exit lookback (bars)", DefaultValue = 10, MinValue = 1)]
+        public int ExitPeriod { get; set; }
+
         [Parameter("Trend SMA (bars)", DefaultValue = 200, MinValue = 10)]
         public int TrendSmaPeriod { get; set; }
 
@@ -34,7 +37,7 @@ namespace cAlgo.Robots
         [Parameter("ATR stop mult", DefaultValue = 2.0, MinValue = 0.1)]
         public double AtrStopMult { get; set; }
 
-        [Parameter("Reward:Risk", DefaultValue = 2.0, MinValue = 0.1)]
+        [Parameter("Reward:Risk (0 = no take profit)", DefaultValue = 0.0, MinValue = 0.0)]
         public double RewardRisk { get; set; }
 
         private AverageTrueRange _atr;
@@ -114,7 +117,11 @@ namespace cAlgo.Robots
                 }
                 if (priorHigh == double.MinValue || priorLow == double.MaxValue) return;
 
-                if (Positions.Find(Label) != null) return;
+                if (Positions.Find(Label) != null)
+                {
+                    ManageExit(Positions.Find(Label), i, close);
+                    return;
+                }
                 if (Positions.Count >= MaxPositions) return;
 
                 if (close > priorHigh && close > sma)
@@ -132,7 +139,7 @@ namespace cAlgo.Robots
 
             double stopPips = (AtrStopMult * atr) / pip;
             if (stopPips < 1.0) stopPips = 1.0;
-            double tpPips = stopPips * RewardRisk;
+            double tpPips = RewardRisk > 0.0 ? stopPips * RewardRisk : 0.0;
 
             double riskAmount = Account.Equity * (RiskPerTradePct / 100.0);
             double pipValue = Symbol.PipValue;
@@ -154,6 +161,30 @@ namespace cAlgo.Robots
                 Print("ENTRY OK: {0} units={1} entry={2}", side, units, (r.Position != null ? r.Position.EntryPrice : 0.0));
             else
                 Print("ENTRY FAILED: {0}", r.Error);
+        }
+
+        private void ManageExit(Position pos, int i, double close)
+        {
+            double exitHigh = double.MinValue;
+            double exitLow = double.MaxValue;
+            for (int j = i - ExitPeriod; j <= i - 1; j++)
+            {
+                if (j < 0) continue;
+                exitHigh = Math.Max(exitHigh, Bars.HighPrices[j]);
+                exitLow = Math.Min(exitLow, Bars.LowPrices[j]);
+            }
+            if (exitHigh == double.MinValue || exitLow == double.MaxValue) return;
+
+            if (pos.TradeType == TradeType.Buy && close < exitLow)
+            {
+                ClosePosition(pos);
+                Print("EXIT Buy {0}: close={1} < exitLow={2}", Symbol.Name, close, exitLow);
+            }
+            else if (pos.TradeType == TradeType.Sell && close > exitHigh)
+            {
+                ClosePosition(pos);
+                Print("EXIT Sell {0}: close={1} > exitHigh={2}", Symbol.Name, close, exitHigh);
+            }
         }
 
         private void Flatten()
