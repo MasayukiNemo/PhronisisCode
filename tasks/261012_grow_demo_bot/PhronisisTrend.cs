@@ -32,6 +32,9 @@ namespace cAlgo.Robots
         [Parameter("Trend SMA (bars)", DefaultValue = 200, MinValue = 10)]
         public int TrendSmaPeriod { get; set; }
 
+        [Parameter("Higher trend TF (H1/H4/D1/W1)", DefaultValue = "D1")]
+        public string HigherTrendTimeFrame { get; set; }
+
         [Parameter("ATR period", DefaultValue = 14, MinValue = 2)]
         public int AtrPeriod { get; set; }
 
@@ -52,6 +55,7 @@ namespace cAlgo.Robots
 
         private AverageTrueRange _atr;
         private SimpleMovingAverage _trend;
+        private Bars _trendBars;
 
         private HashSet<int> _blocked = new HashSet<int>();
         private double _hwHigh;
@@ -73,7 +77,10 @@ namespace cAlgo.Robots
                 if (Symbol == null) { Print("ABORT: Symbol is null."); Stop(); return; }
 
                 _atr = Indicators.AverageTrueRange(AtrPeriod, MovingAverageType.Simple);
-                _trend = Indicators.SimpleMovingAverage(Bars.ClosePrices, TrendSmaPeriod);
+                TimeFrame htf = ParseHigherTimeFrame(HigherTrendTimeFrame);
+                _trendBars = MarketData.GetBars(htf);
+                _trend = Indicators.SimpleMovingAverage(_trendBars.ClosePrices, TrendSmaPeriod);
+                Print("Trend filter: HigherTF={0} SMA={1} (bars loaded={2})", HigherTrendTimeFrame, TrendSmaPeriod, _trendBars.Count);
 
                 _blocked.Clear();
                 if (!string.IsNullOrEmpty(BlockedEntryHoursUtc))
@@ -126,7 +133,7 @@ namespace cAlgo.Robots
                 int i = Bars.Count - 2; // last closed bar
                 double close = Bars.ClosePrices[i];
                 double atr = _atr.Result[i];
-                double sma = _trend.Result[i];
+                double sma = _trend.Result.Last(1);
                 if (double.IsNaN(atr) || double.IsNaN(sma) || atr <= 0 || close <= 0) return;
 
                 double priorHigh = double.MinValue;
@@ -189,6 +196,21 @@ namespace cAlgo.Robots
             }
             else
                 Print("ENTRY FAILED: {0}", r.Error);
+        }
+
+        private TimeFrame ParseHigherTimeFrame(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return TimeFrame;
+            switch (s.Trim().ToUpperInvariant())
+            {
+                case "M1": return TimeFrame.Minute;
+                case "M15": return TimeFrame.Minute15;
+                case "H1": return TimeFrame.Hour;
+                case "H4": return TimeFrame.Hour4;
+                case "D1": return TimeFrame.Daily;
+                case "W1": return TimeFrame.Weekly;
+                default: return TimeFrame;
+            }
         }
 
         private void UpdateTrailing(Position pos, int i, double atr, double close)
