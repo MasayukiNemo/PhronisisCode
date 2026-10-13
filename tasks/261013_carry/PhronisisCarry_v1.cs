@@ -33,9 +33,22 @@ namespace cAlgo.Robots
         public double AtrStopMult { get; set; }
         [Parameter("Block entry hours (UTC, comma)", DefaultValue = "")]
         public string BlockedEntryHoursUtc { get; set; }
+        [Parameter("Use trend alignment filter", DefaultValue = false)]
+        public bool UseTrendFilter { get; set; }
+        [Parameter("Trend MA period", DefaultValue = 100, MinValue = 5)]
+        public int TrendMaPeriod { get; set; }
+        [Parameter("Target annualized vol (%)", DefaultValue = 8.0, MinValue = 1.0)]
+        public double TargetVolPct { get; set; }
+        [Parameter("Vol lookback bars", DefaultValue = 60, MinValue = 10)]
+        public int VolLookbackBars { get; set; }
+        [Parameter("Vol scale min", DefaultValue = 0.5, MinValue = 0.05)]
+        public double VolScaleMin { get; set; }
+        [Parameter("Vol scale max", DefaultValue = 2.0, MinValue = 0.1)]
+        public double VolScaleMax { get; set; }
 
         private AverageTrueRange _atr;
         private MovingAverage _atrMa;
+        private MovingAverage _trendMa;
         private HashSet<int> _blocked = new HashSet<int>();
         private TradeType _carrySide;
         private bool _carryValid;
@@ -52,6 +65,7 @@ namespace cAlgo.Robots
 
                 _atr = Indicators.AverageTrueRange(AtrPeriod, MovingAverageType.Simple);
                 _atrMa = Indicators.MovingAverage(_atr.Result, AtrMaPeriod, MovingAverageType.Exponential);
+                _trendMa = Indicators.MovingAverage(Bars.ClosePrices, TrendMaPeriod, MovingAverageType.Simple);
                 _blocked.Clear();
                 if (!string.IsNullOrEmpty(BlockedEntryHoursUtc))
                     foreach (var t in BlockedEntryHoursUtc.Split(',')) { int h; if (int.TryParse(t.Trim(), out h) && h >= 0 && h <= 23) _blocked.Add(h); }
@@ -87,11 +101,19 @@ namespace cAlgo.Robots
                 if (double.IsNaN(atr) || double.IsNaN(atrMa) || atrMa <= 0 || atr <= 0) return;
                 double ratio = atr / atrMa;
 
+                double trendMa = _trendMa.Result[i];
+                double close = Bars.ClosePrices[i];
                 var pos = Positions.Find(Lb);
                 if (pos != null)
                 {
                     // クラッシュ回避: リスクオフ（ボラ急騰）で全撤退
-                    if (ratio >= RiskOffRatio) { ClosePosition(pos); Print("EXIT carry: risk-off ratio={0:F2}", ratio); }
+                    if (ratio >= RiskOffRatio) { ClosePosition(pos); Print("EXIT carry: risk-off ratio={0:F2}", ratio); return; }
+                    // トレンド離反で撤退（キャリー方向と逆行＝大負けの源を切る）
+                    if (UseTrendFilter && !double.IsNaN(trendMa))
+                    {
+                        bool aligned = pos.TradeType == TradeType.Buy ? close > trendMa : close < trendMa;
+                        if (!aligned) { ClosePosition(pos); Print("EXIT carry: trend break close={0:F5} ma={1:F5}", close, trendMa); }
+                    }
                     return;
                 }
 
@@ -99,22 +121,54 @@ namespace cAlgo.Robots
                 if (_blocked.Contains(Server.Time.Hour)) return;
                 // リスクオン時のみ保有
                 if (ratio > RiskOnRatio) { return; }
+                // キャリー方向にトレンドが沿う時のみ保有
+                if (UseTrendFilter && !double.IsNaN(trendMa))
+                {
+                    bool aligned = _carrySide == TradeType.Buy ? close > trendMa : close < trendMa;
+                    if (!aligned) return;
+                }
 
-                Enter(_carrySide, atr, ratio);
+                double rv = RealizedVolPct(i);
+                double volScale = 1.0;
+                if (rv > 0.01) volScale = Math.Max(VolScaleMin, Math.Min(VolScaleMax, TargetVolPct / rv));
+                Enter(_carrySide, atr, ratio, volScale);
             }
             catch (Exception ex) { Print("OnBar EXCEPTION: {0}", ex.Message); }
         }
 
-        private void Enter(TradeType side, double atr, double ratio)
+        private double RealizedVolPct(int i)
+        {
+            int n = VolLookbackBars;
+            if (i < n + 1) return 0;
+            double sum = 0, sum2 = 0; int cnt = 0;
+            for (int k = i - n + 1; k <= i; k++)
+            {
+                double p0 = Bars.ClosePrices[k - 1], p1 = Bars.ClosePrices[k];
+                if (p0 <= 0 || p1 <= 0) continue;
+                double r = Math.Log(p1 / p0);
+                sum += r; sum2 += r * r; cnt++;
+            }
+            if (cnt < 2) return 0;
+            double mean = sum / cnt;
+            double var = (sum2 / cnt) - mean * mean;
+            if (var < 0) var = 0;
+            double spanMin = (Bars.OpenTimes[i] - Bars.OpenTimes[i - n]).TotalMinutes;
+            if (spanMin <= 0) return 0;
+            double minutesPerBar = spanMin / n;
+            double barsPerYear = (365.0 * 24.0 * 60.0) / minutesPerBar;
+            return Math.Sqrt(var) * Math.Sqrt(barsPerYear) * 100.0;
+        }
+
+        private void Enter(TradeType side, double atr, double ratio, double volScale)
         {
             double pip = Symbol.PipSize; if (pip <= 0) return;
             double stopPips = (AtrStopMult * atr) / pip; if (stopPips < 1) stopPips = 1;
-            double risk = Account.Equity * (RiskPerTradePct / 100.0);
+            double risk = Account.Equity * (RiskPerTradePct * volScale / 100.0);
             double pv = Symbol.PipValue; if (pv <= 0) return;
             double units = Symbol.NormalizeVolumeInUnits(risk / (stopPips * pv), RoundingMode.Down);
             if (units < Symbol.VolumeInUnitsMin) return;
             var r = ExecuteMarketOrder(side, Symbol.Name, units, Lb, stopPips, 0);
-            if (r != null && r.IsSuccessful) Print("ENTRY carry {0} units={1} ratio={2:F2} swapL={3} swapS={4}", side, units, ratio, Symbol.SwapLong, Symbol.SwapShort);
+            if (r != null && r.IsSuccessful) Print("ENTRY carry {0} units={1} ratio={2:F2} swapL={3} swapS={4} volScale={5:F4} stopPips={6:F1}", side, units, ratio, Symbol.SwapLong, Symbol.SwapShort, volScale, stopPips);
             else if (r != null) Print("ENTRY FAILED {0}", r.Error);
         }
 
