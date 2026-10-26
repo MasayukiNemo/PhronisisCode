@@ -22,10 +22,16 @@ HALLUCINATIONS = [
 ]
 PAT = re.compile("^(" + "|".join(re.escape(h) for h in HALLUCINATIONS) + ")+")
 LOOP_PAT = re.compile(r"^(.{1,6}?)[、・ 　]+(\1[、・ 　]+){2,}\1?$")
+# 区切りなしの連続重複 (例: お母さんが来ましたお母さんが来ました…) を畳む
+REPEAT_PAT = re.compile(r"^(.{2,30}?)\1{2,}$")
 
 
 def collapse_loop(text: str) -> tuple[str, bool]:
-    m = LOOP_PAT.match(text.strip())
+    t = text.strip()
+    m = LOOP_PAT.match(t)
+    if m:
+        return m.group(1), True
+    m = REPEAT_PAT.match(t)
     if m:
         return m.group(1), True
     return text, False
@@ -94,8 +100,9 @@ def main(argv: list[str] | None = None) -> int:
             dropped += 1
             continue
         st, en = repair_time(float(s.get("start", 0.0)), float(s.get("end", 0.0)), text)
-        # 直前と同一の短文はループとみなし結合 (相槌・繰返し対策)
-        if cleaned and len(text) <= 6 and cleaned[-1]["text"] == text:
+        # 直前と同一の短文はループとみなし結合 (相槌・繰返し・音楽区間の幻覚対策)
+        # 話者が違っても畳む: 交互に繰り返す幻覚ループを潰すため
+        if cleaned and len(text) <= 30 and cleaned[-1]["text"] == text:
             cleaned[-1]["end"] = round(en * scale, 2)
             merged += 1
             continue
