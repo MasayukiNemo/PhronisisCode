@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>マインスイーパ</title>
+<style>
+  :root { --cell: min(10.5vw, 44px); }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+    background: #1f2430; color: #e8ecf3;
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    user-select: none; -webkit-user-select: none;
+  }
+  header { width: 100%; max-width: 440px; padding: 12px 12px 4px; }
+  h1 { font-size: 18px; margin: 0 0 10px; text-align: center; letter-spacing: 1px; }
+  .hud { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .badge {
+    background: #2b3242; border-radius: 8px; padding: 6px 10px;
+    font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .btn {
+    background: #3a4a63; color: #e8ecf3; border: 0; border-radius: 8px;
+    padding: 8px 12px; font-size: 14px; cursor: pointer; touch-action: manipulation;
+    font-family: inherit;
+  }
+  .btn:active { background: #4a5c7a; }
+  .btn.active { background: #b8860b; }
+  .btn.restart { width: 100%; margin-bottom: 8px; background: #2f6f4f; font-size: 15px; }
+  .btn.restart:active { background: #3a8a63; }
+  #board {
+    display: grid; gap: 4px; padding: 8px; background: #2b3242;
+    border-radius: 12px; margin: 0 auto 12px;
+  }
+  .cell {
+    width: var(--cell); height: var(--cell); display: flex; align-items: center; justify-content: center;
+    background: #4a5a75; border-radius: 6px; font-size: calc(var(--cell) * 0.42);
+    font-weight: 700; cursor: pointer; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.25);
+    line-height: 1;
+  }
+  .cell.revealed { background: #222834; box-shadow: none; cursor: default; }
+  .cell.mine { background: #7a2b2b; }
+  .cell.flagged { background: #4a5a75; }
+  .n1 { color: #6ab0ff; } .n2 { color: #6ad08a; } .n3 { color: #ff7a7a; }
+  .n4 { color: #c39bff; } .n5 { color: #ffb36a; } .n6 { color: #6ad0d0; }
+  .n7 { color: #e8ecf3; } .n8 { color: #b8c0cc; }
+  .rules {
+    width: 100%; max-width: 440px; padding: 4px 16px 24px;
+    font-size: 13px; color: #b8c0cc; line-height: 1.7;
+  }
+  .rules h2 { font-size: 14px; color: #e8ecf3; margin: 8px 0 6px; }
+  .rules ul { margin: 0; padding-left: 18px; }
+  .overlay {
+    position: fixed; inset: 0; background: rgba(15, 18, 25, 0.82);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .overlay.hidden { display: none; }
+  .overlay-inner {
+    background: #2b3242; border-radius: 14px; padding: 24px; text-align: center;
+    max-width: 320px; width: 100%;
+  }
+  #overlayText { font-size: 20px; font-weight: 700; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>マインスイーパ</h1>
+  <div class="hud">
+    <div class="badge" id="mineCount">💣 10</div>
+    <button class="btn" id="flagBtn" type="button">🚩 旗モード: OFF</button>
+    <div class="badge" id="timer">⏱ 0</div>
+  </div>
+  <button class="btn restart" id="restartBtn" type="button">もう一度</button>
+</header>
+<main><div id="board"></div></main>
+<section class="rules">
+  <h2>遊び方</h2>
+  <ul>
+    <li>マスをタップして開く。数字は、そのまわり8マスにある爆弾の数。</li>
+    <li>爆弾を開いてしまうとゲームオーバー。</li>
+    <li>爆弾以外のマスをすべて開ければクリア。</li>
+    <li>「旗モード」でタップすると、旗を立てたり外したりできる（目印）。</li>
+    <li>「もう一度」で最初からやり直せる。</li>
+  </ul>
+</section>
+<div id="overlay" class="overlay hidden">
+  <div class="overlay-inner">
+    <div id="overlayText">クリア!</div>
+    <button class="btn" id="overlayRestart" type="button">もう一度遊ぶ</button>
+  </div>
+</div>
+<script>
+(function () {
+  'use strict';
+  var ROWS = 8, COLS = 8, MINES = 10;
+  var board = [];
+  var state = 'ready';
+  var flagMode = false;
+  var revealed = 0;
+  var flags = 0;
+  var seconds = 0;
+  var timerId = null;
+
+  var boardEl = document.getElementById('board');
+  var mineEl = document.getElementById('mineCount');
+  var timeEl = document.getElementById('timer');
+  var flagBtn = document.getElementById('flagBtn');
+  var restartBtn = document.getElementById('restartBtn');
+  var overlay = document.getElementById('overlay');
+  var overlayText = document.getElementById('overlayText');
+  var overlayRestart = document.getElementById('overlayRestart');
+
+  function emptyCell() { return { mine: false, revealed: false, flagged: false, count: 0 }; }
+
+  function build() {
+    board = [];
+    for (var r = 0; r < ROWS; r++) {
+      var row = [];
+      for (var c = 0; c < COLS; c++) row.push(emptyCell());
+      board.push(row);
+    }
+  }
+
+  function neighbors(r, c) {
+    var out = [];
+    for (var dr = -1; dr <= 1; dr++) {
+      for (var dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        var nr = r + dr, nc = c + dc;
+        if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) out.push([nr, nc]);
+      }
+    }
+    return out;
+  }
+
+  function placeMines(safeR, safeC) {
+    var forbidden = {};
+    forbidden[safeR + ',' + safeC] = true;
+    neighbors(safeR, safeC).forEach(function (p) { forbidden[p[0] + ',' + p[1]] = true; });
+    var positions = [];
+    for (var r = 0; r < ROWS; r++) {
+      for (var c = 0; c < COLS; c++) {
+        if (!forbidden[r + ',' + c]) positions.push([r, c]);
+      }
+    }
+    for (var i = positions.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = positions[i]; positions[i] = positions[j]; positions[j] = t;
+    }
+    for (var k = 0; k < MINES && k < positions.length; k++) {
+      board[positions[k][0]][positions[k][1]].mine = true;
+    }
+    for (var r2 = 0; r2 < ROWS; r2++) {
+      for (var c2 = 0; c2 < COLS; c2++) {
+        board[r2][c2].count = neighbors(r2, c2).filter(function (p) {
+          return board[p[0]][p[1]].mine;
+        }).length;
+      }
+    }
+  }
+
+  function render() {
+    for (var r = 0; r < ROWS; r++) {
+      for (var c = 0; c < COLS; c++) {
+        var cell = board[r][c];
+        var el = document.getElementById('cell-' + r + '-' + c);
+        el.className = 'cell';
+        el.textContent = '';
+        if (cell.revealed) {
+          el.classList.add('revealed');
+          if (cell.mine) { el.classList.add('mine'); el.textContent = '💣'; }
+          else if (cell.count > 0) { el.textContent = cell.count; el.classList.add('n' + cell.count); }
+        } else if (cell.flagged) {
+          el.classList.add('flagged');
+          el.textContent = '🚩';
+        }
+      }
+    }
+    mineEl.textContent = '💣 ' + (MINES - flags);
+    timeEl.textContent = '⏱ ' + seconds;
+    flagBtn.textContent = flagMode ? '🚩 旗モード: ON' : '🚩 旗モード: OFF';
+    flagBtn.classList.toggle('active', flagMode);
+  }
+
+  function startTimer() {
+    if (timerId) return;
+    timerId = setInterval(function () {
+      seconds++;
+      timeEl.textContent = '⏱ ' + seconds;
+    }, 1000);
+  }
+  function stopTimer() {
+    if (timerId) { clearInterval(timerId); timerId = null; }
+  }
+
+  function reveal(r, c) {
+    var cell = board[r][c];
+    if (cell.revealed || cell.flagged) return;
+    if (state === 'ready') { placeMines(r, c); state = 'playing'; startTimer(); }
+    if (state !== 'playing') return;
+    if (cell.mine) {
+      cell.revealed = true;
+      state = 'over';
+      stopTimer();
+      revealAllMines();
+      render();
+      showOverlay('ゲームオーバー', '💣');
+      return;
+    }
+    floodReveal(r, c);
+    render();
+    checkClear();
+  }
+
+  function floodReveal(r, c) {
+    var stack = [[r, c]];
+    while (stack.length) {
+      var p = stack.pop(), cr = p[0], cc = p[1];
+      var cell = board[cr][cc];
+      if (cell.revealed || cell.flagged || cell.mine) continue;
+      cell.revealed = true;
+      revealed++;
+      if (cell.count === 0) {
+        neighbors(cr, cc).forEach(function (q) {
+          if (!board[q[0]][q[1]].revealed) stack.push(q);
+        });
+      }
+    }
+  }
+
+  function revealAllMines() {
+    for (var r = 0; r < ROWS; r++) {
+      for (var c = 0; c < COLS; c++) {
+        if (board[r][c].mine) board[r][c].revealed = true;
+      }
+    }
+  }
+
+  function toggleFlag(r, c) {
+    var cell = board[r][c];
+    if (cell.revealed) return;
+    if (state === 'ready') { placeMines(r, c); state = 'playing'; startTimer(); }
+    if (state !== 'playing') return;
+    if (cell.flagged) { cell.flagged = false; flags--; }
+    else {
+      if (flags >= MINES) return;
+      cell.flagged = true;
+      flags++;
+    }
+    render();
+  }
+
+  function checkClear() {
+    if (revealed === ROWS * COLS - MINES) {
+      state = 'clear';
+      stopTimer();
+      for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+          if (board[r][c].mine && !board[r][c].flagged) { board[r][c].flagged = true; flags++; }
+        }
+      }
+      render();
+      showOverlay('クリア! (' + seconds + '秒)', '🎉');
+    }
+  }
+
+  function showOverlay(text, icon) {
+    overlayText.textContent = icon + ' ' + text;
+    overlay.classList.remove('hidden');
+  }
+
+  function init() {
+    build();
+    state = 'ready';
+    flagMode = false;
+    revealed = 0;
+    flags = 0;
+    seconds = 0;
+    stopTimer();
+    overlay.classList.add('hidden');
+    boardEl.innerHTML = '';
+    boardEl.style.gridTemplateColumns = 'repeat(' + COLS + ', var(--cell))';
+    for (var r = 0; r < ROWS; r++) {
+      for (var c = 0; c < COLS; c++) {
+        var el = document.createElement('div');
+        el.className = 'cell';
+        el.id = 'cell-' + r + '-' + c;
+        el.setAttribute('role', 'button');
+        el.addEventListener('click', (function (r2, c2) {
+          return function () {
+            if (flagMode) toggleFlag(r2, c2);
+            else reveal(r2, c2);
+          };
+        })(r, c));
+        boardEl.appendChild(el);
+      }
+    }
+    render();
+  }
+
+  flagBtn.addEventListener('click', function () { flagMode = !flagMode; render(); });
+  restartBtn.addEventListener('click', init);
+  overlayRestart.addEventListener('click', init);
+
+  init();
+})();
+</script>
+</body>
+</html>
