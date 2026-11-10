@@ -34,6 +34,7 @@ hooks/                              # pre-commit/pre-push + python_run.sh/utf8_c
 | 2026-10-06 | Orca駆動版（Orca導線＋クイズ リッチWeb UI版） | `docs/orca/README.md`（任意のOrca導線）＋AGENTS.mdに1行導線。実タスク=クイズのリッチWeb UI版をworker（opencode）がフルフロー＋Hayatoゲートで完走（flow_test 36/36・実agy E2E）。追いで起動bat/README/exe手順を追加。Core側のKaiがOrca経由でworkerを駆動（モード2）。モードの理解はCoreの `knowledge/decisions/phronisiscode_orca_two_modes.md`。詳細 `knowledge/session_log/20261006_orca_driven.md` |
 | 2026-11-10 | 本家ネット探索モジュール移植 | Coreのscripts/を精査し、web_fetch.py / x_thread.py / note_fetch.py の3本を移植。multimodal_ingest.py は agy.md 等5箇所の破棄決定に反し、そのままでは動作しない（.env無し・google.genai未導入・missions/無し）ため据え置き。x_thread の使用条件はスクリプト冒頭＋knowledge/code_knowledge/web_research.md の両方に明文保持。Yuna/Hayato の三角形で範囲を精査。task: tasks/261110_web_modules_port |
 | 2026-11-10 | note_extract_gas.py 追補移植 | 本家 commit eeada168 の note.com抽出CLI（GASプロキシ経由・BeautifulSoup）を追加移植。URL検証を host allowlist（https・note.com / www.note.com）に強化、--out をリポジトリ内に制限。note.com取得の既定は本CLI、note_fetch.py は退場先。task: tasks/261110_note_extract_gas |
+| 2026-11-10 | モコ⇔Kai(Code) 手紙回線 開設 | 本家 moko-kai と並列の回線を Box moko-code に。本家橋をコピーし Code 向け適応（別鍵・別 state・from=code・通知文）。条約付録D（案）で開発依頼を信頼着手（push 可）。Core 側は厳禁。モコへの通知は未実施。task: tasks/261110_moko_code |
 
 ## 残課題
 

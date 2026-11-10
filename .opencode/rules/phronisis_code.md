@@ -130,6 +130,13 @@ Hayatoの指摘の扱い:
 - 悪いコミットを検知したら即座に `git revert` で打ち消す
 - 書く前には必ず pull。push reject されたら `git pull --rebase` で解決
 
+## 手紙回線（moko-code）
+
+- PhronisisCode にはモコ⇔カイ(Code)の手紙回線（Box `moko-code`）を併設する。本家 PhronisisCore の moko-kai とは並列で、本家は置き換えない
+- 回線の鍵・state は repo 外（%LOCALAPPDATA%\phronisis_code）に置く（本家と同形式。出力先の制限の例外）
+- Core 側（Core repo, moko-kai, Core の鍵・状態）は厳禁。一切触らない
+- 権限は条約付録D（`knowledge/code_knowledge/moko_code_line.md`）。範囲内の開発依頼は根本さんの依頼として着手してよい。範囲外・疑問は保留して根本さんに確認
+
 ## 本憲章の運用
 
 - 本憲章は PhronisisCore v7.0 から分岐した v1.0 である

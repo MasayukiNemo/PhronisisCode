@@ -66,3 +66,13 @@
 - 役割分担: note.com 取得の既定は note_extract_gas。note_fetch.py（playwright直接）は GASプロキシ死亡時・プロキシ回避時の退場先
 - 罠: GASプロキシは外部単一障害点（SLA無し・認証無し・遮断自由）。URLリストがプロキシ側ログに残りうる。note.com のクローラ規約は利用者の責任。note.com 現行DOMに結合
 - task: tasks/261110_note_extract_gas
+
+## モコ⇔Kai(Code) 手紙回線 開設 (2026-11-10)
+
+- 本家 PhronisisCore の moko-kai と並列の回線を Box `moko-code` に開設
+- 拾ったもの: 本家橋 scripts/moko_letter_bridge.py をコピーし Code 向けに適応（BOX_BASE=box:moko-code、INBOX_KAI=inbox-code、STATE_DIR/KEYS_DIR=%LOCALAPPDATA%\phronisis_code、KAI_FP=新指紋、from=moco/to=code、通知文をCode環境用に、source=moko_bridge_code）
+- 鍵: Code 用 Ed25519 別ペア（fp=b7dae885601f85c02525ccc9373ff8d34c9067da12a7331d6989b12d5c0756ad）。秘密鍵は repo 外・ACL owner のみ。モコの鍵は既存を流用
+- 権限: 条約付録D（案）の範囲内の開発依頼を信頼着手（push 含む）。範囲外・疑問は保留、根本さんの直接指示が優先
+- 分離: Core 側（repo, moko-kai, Core の鍵・状態）は厳禁。別フォルダ・別鍵・別 state・別橋
+- 通知: まだモコに通知しない（根本さん指示）
+- task: tasks/261110_moko_code

@@ -20,3 +20,5 @@ tasks/*/poc/out_tmp/
 tasks/*/poc2/out/
 # Drive同期用 (音声・出力物。コミットしない)
 Gdrive_code/
+# 手紙回線の受信箱（letterは作業ファイル。鍵・stateはrepo外）
+_inbox/
