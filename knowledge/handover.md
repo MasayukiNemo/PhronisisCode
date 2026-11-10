@@ -23,6 +23,7 @@ hooks/                              # pre-commit/pre-push + python_run.sh/utf8_c
 | DESKTOP-QCLBNKI | 開発拠点 | 初期構築端末 |
 | BUF-STMarketingnoMacBook-Air.local | Mac (macOS Tahoe / arm64) | homebrew 5.1.11, python 3.12.14, git 2.54.0, gh 2.98.0, opencode-desktop 1.18.25, Code 検証済み (5/5 PASS) |
 | PC122-00290 | Windows 11 Pro 24H2 / 会社PC | python 3.13.5, git 2.54.0.windows.1, rclone 1.74.1, node 22.17.0, OpenCode.exe 1.18.25, PhronisisCore 併存, Code 検証済み (5/5 PASS 2026-09-01), gh未導入（git credentialでpush可）, hooks=bash via Git for Windows |
+| LAPTOP-VO3C74SH | Windows 11 Home 26300 / 個人端末（常時稼働・RDPホスト） | python 3.11.1, git 2.54.0.windows.1, node 24.15.0, opencode 1.18.34, agy, playwright, crawl4ai, rclone 1.74.0. 会社端末ではない（本家PhronisisCore側handoverに環境詳細あり） |
 
 ## セッションログ（要約）
 

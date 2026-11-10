@@ -47,3 +47,13 @@
 - `docs/orca/README.md` §原則にも同旨を追記
 - 併せて既存の2成果物を本物repoへ反映
 - Hayatoレビュー反映（同日）: 仕組みゼロ・チェックリストが空手形・コピーは対症（原因はsandbox originがローカルbare）等の指摘を受け、(1)構造的fixを第一原則に（実タスクは origin=GitHub の本物 `PhronisisCode` で worktree を作る／sandboxは実験専用）、(2)点検ツール `scripts/orca_worktree_audit.py --reflect <正本repo>` を追加（worktreeの `tasks/*` 未反映を検出）、(3)記述を1箇所正本＋参照に痩せさせた
+
+## ネット探索モジュール取込 (2026-11-10)
+
+- 本家 PhronisisCore の scripts/ からネット探索系3本を移植: web_fetch.py / x_thread.py / note_fetch.py
+- 拾ったもの: 汎用Web取得（requests→Crawl4AI→Playwright fallback）、X投稿取得（stdlibのみ・MIT）、note.com取得（playwright）
+- 捨てたもの: 本家の業務系（sellersprite / amazon_review / gfk / bcn / ss_semi_solid / explore_cube / apply_single_port）、sharepoint系、instagram系、アーカイブ系（makanao / abel / insta_archive）、multimodal_ingest、gemini_query、note_proxy_server
+- 拾わなかった理由: Codeはコーディング専用。業務データ・個人SNS・アーカイブは射程外。multimodal_ingestはagy.md:13・orchestration_flow_code.md:185・evolution_log:34・tasks/260913 の複数箇所で破棄済みで、かつ Codeに .env が無く google.genai 未導入・missions/ 無しでそのままでは動作しない。note_fetch は web_fetch と冗長だが保険として所持
+- x_thread の使用条件（会社網・会社IPから出る端末では使わない）は scripts/x_thread.py 冒頭と knowledge/code_knowledge/web_research.md の両方に明文保持
+- 検証: web_fetch を example.com（stage1）と価格.com（エンコード不一致→crawl4aiで29,888字）で実地確認。x_thread/note_fetch は静的確認
+- task: tasks/261110_web_modules_port
