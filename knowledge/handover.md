@@ -33,6 +33,7 @@ hooks/                              # pre-commit/pre-push + python_run.sh/utf8_c
 | 2026-08-23 | 大規模レビュー+修正 | 6視点レビュー（Gaia/Hermes/Daedalus/Metis/Yuna/Hayato）でP0 3点（パス/ hooks/ 6神profile）を検出。深層思考でfast-pathとdrift自動化を見送り7点に絞って修正。Hayato二巡目で残BLOCK（utf8_check/テンプレート残骸）を検出し再修正。 |
 | 2026-10-06 | Orca駆動版（Orca導線＋クイズ リッチWeb UI版） | `docs/orca/README.md`（任意のOrca導線）＋AGENTS.mdに1行導線。実タスク=クイズのリッチWeb UI版をworker（opencode）がフルフロー＋Hayatoゲートで完走（flow_test 36/36・実agy E2E）。追いで起動bat/README/exe手順を追加。Core側のKaiがOrca経由でworkerを駆動（モード2）。モードの理解はCoreの `knowledge/decisions/phronisiscode_orca_two_modes.md`。詳細 `knowledge/session_log/20261006_orca_driven.md` |
 | 2026-11-10 | 本家ネット探索モジュール移植 | Coreのscripts/を精査し、web_fetch.py / x_thread.py / note_fetch.py の3本を移植。multimodal_ingest.py は agy.md 等5箇所の破棄決定に反し、そのままでは動作しない（.env無し・google.genai未導入・missions/無し）ため据え置き。x_thread の使用条件はスクリプト冒頭＋knowledge/code_knowledge/web_research.md の両方に明文保持。Yuna/Hayato の三角形で範囲を精査。task: tasks/261110_web_modules_port |
+| 2026-11-10 | note_extract_gas.py 追補移植 | 本家 commit eeada168 の note.com抽出CLI（GASプロキシ経由・BeautifulSoup）を追加移植。URL検証を host allowlist（https・note.com / www.note.com）に強化、--out をリポジトリ内に制限。note.com取得の既定は本CLI、note_fetch.py は退場先。task: tasks/261110_note_extract_gas |
 
 ## 残課題
 

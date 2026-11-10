@@ -57,3 +57,12 @@
 - x_thread の使用条件（会社網・会社IPから出る端末では使わない）は scripts/x_thread.py 冒頭と knowledge/code_knowledge/web_research.md の両方に明文保持
 - 検証: web_fetch を example.com（stage1）と価格.com（エンコード不一致→crawl4aiで29,888字）で実地確認。x_thread/note_fetch は静的確認
 - task: tasks/261110_web_modules_port
+
+## note_extract_gas 追補 (2026-11-10)
+
+- 本家 commit eeada168 の scripts/note_extract_gas.py を追加移植
+- 拾ったもの: note.com 記事を GAS プロキシ経由で取得し BeautifulSoup で構造化するCLI（requests+bs4・playwright不要）
+- 適応: URL検証を host allowlist（https・note.com / www.note.com）に強化（元の ^https?://note\.com/ は note.com.evil.com を通す）。--out をリポジトリ内のみに制限（憲章「ファイル出力はリポジトリ内のみ」）
+- 役割分担: note.com 取得の既定は note_extract_gas。note_fetch.py（playwright直接）は GASプロキシ死亡時・プロキシ回避時の退場先
+- 罠: GASプロキシは外部単一障害点（SLA無し・認証無し・遮断自由）。URLリストがプロキシ側ログに残りうる。note.com のクローラ規約は利用者の責任。note.com 現行DOMに結合
+- task: tasks/261110_note_extract_gas
