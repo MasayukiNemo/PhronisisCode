@@ -178,7 +178,7 @@
         }
       }
     }
-    mineEl.textContent = '💣 ' + (MINES - flags);
+    mineEl.textContent = '💣 ' + Math.max(0, MINES - flags);
     timeEl.textContent = '⏱ ' + seconds;
     flagBtn.textContent = flagMode ? '🚩 旗モード: ON' : '🚩 旗モード: OFF';
     flagBtn.classList.toggle('active', flagMode);
@@ -256,9 +256,17 @@
     if (revealed === ROWS * COLS - MINES) {
       state = 'clear';
       stopTimer();
+      // 誤旗（爆弾でないマスへの旗）を先に外してから、残りの爆弾へ旗を立てる。
+      // これで旗の総数が爆弾数を超えず、残り爆弾数の表示が負にならない。
       for (var r = 0; r < ROWS; r++) {
         for (var c = 0; c < COLS; c++) {
-          if (board[r][c].mine && !board[r][c].flagged) { board[r][c].flagged = true; flags++; }
+          var cell = board[r][c];
+          if (cell.flagged && !cell.mine) { cell.flagged = false; flags--; }
+        }
+      }
+      for (var r2 = 0; r2 < ROWS; r2++) {
+        for (var c2 = 0; c2 < COLS; c2++) {
+          if (board[r2][c2].mine && !board[r2][c2].flagged) { board[r2][c2].flagged = true; flags++; }
         }
       }
       render();
