@@ -45,6 +45,11 @@
 - Kai自身は harness の webfetch / websearch / browser を使える。スクリプトは worker（opencode）や再現性が必要な場面、リポジトリ内パイプライン向け
 - 探索スクリプトを量産しない（AGENTS.md 実装ルール2）。必要が観測されてから使う
 
+## 使用は控えめに（根本さん指示 2026-11-10）
+
+- がっつり回さない。高頻度・大量取得はしない。GASプロキシが単一障害点なため
+- 必要に迫られた時だけ使う
+
 ## 罠
 
 - web_fetch の Crawl4AI 経路は patchright（undetected Chromium）で反クローリング回避を明示。対象サイトの規約との関係は利用者の責任（本家 x_trends の例）
