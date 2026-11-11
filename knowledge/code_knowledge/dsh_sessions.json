@@ -143,6 +143,24 @@
       "last_failure": null,
       "wake_word": false,
       "onboarding": "none"
+    },
+    {
+      "uuid": "94466254-89e1-4d29-87eb-6c5761e03a8e",
+      "workspace": "PhronisisDSH",
+      "agent_preset": "標準モード",
+      "model": "LongCat 2.5 Free",
+      "wake_word": false,
+      "onboarding": "none",
+      "title": "カード注入テスト",
+      "task": {
+        "thread_id": "dsh-connection-rules-20261111",
+        "task_id": "261111_dsh_bridge",
+        "note": "接続カード(--card)の注入テスト"
+      },
+      "state": "closed",
+      "updated": "2026-11-12T07:15:00+09:00",
+      "handover_ref": null,
+      "last_failure": null
     }
   ]
 }
