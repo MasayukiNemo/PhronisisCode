@@ -292,6 +292,21 @@ async def _wait_for_new_session(page, timeout_s=8.0):
     return False
 
 
+async def _open_selected_row(page):
+    """選択中のセッション行を明示的にクリックして会話領域を切り替える。"""
+    items = await page.query_selector_all('[class*="sessionRow"]')
+    for it in items:
+        try:
+            cls = (await it.get_attribute("class")) or ""
+            if "selected" in cls:
+                await it.click(timeout=5000)
+                await page.wait_for_timeout(600)
+                return True
+        except Exception:
+            pass
+    return False
+
+
 async def _click_new_session(page):
     """新規作成ボタンをクリック。両バージョンの文言（新会话 / New Session）に対応"""
     buttons = await page.query_selector_all("button")
@@ -301,6 +316,7 @@ async def _click_new_session(page):
             if txt == "新会话" or txt == "New Session" or "新会话" in txt or "New Session" in txt:
                 await b.click()
                 await _wait_for_new_session(page)
+                await _open_selected_row(page)
                 return
         except Exception:
             pass
@@ -312,6 +328,7 @@ async def _click_new_session(page):
             if _is_new_session_item(txt):
                 await it.click()
                 await _wait_for_new_session(page)
+                await _open_selected_row(page)
                 return
         except Exception:
             pass
