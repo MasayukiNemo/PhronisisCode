@@ -4,6 +4,7 @@
       "uuid": "f567c0cb-9276-4e6f-a771-d55a19182418",
       "workspace": "PhronisisDSH",
       "agent_preset": "標準モード",
+      "model": "LongCat 2.5 Free",
       "title": "dshを安全にアップデートでき",
       "task": {
         "thread_id": "dsh-connection-rules-20261111",
