@@ -18,7 +18,7 @@
 - [x] 必須: knowledge/code_knowledge/dsh.md に使い方を記録
 - [x] 必須: evolution_log に取込を記録
 - [x] 必須: Yuna/Hayato の三角形チェックを経る
-- [ ] 任意: dsh_send.py の往復（送信→応答確認）が確認できる（DSH側カイの応答が必要なため、要根本さんの承認）
+- [x] 任意: dsh_send.py の往復（送信→応答確認）が確認できる（2026-11-11、DeepSeek V4.1 Flash で「OK」返答）
 
 ## 判断の軌跡（実行中に記録）
 

@@ -22,8 +22,9 @@ python scripts/dsh_answer.py -o "選択肢の部分文字列"
 
 ## Code適応（2026-11-11）
 
-- `dsh_common.find_token` に現行ランチャーのログ（`%LOCALAPPDATA%\PhronisisDSH/start.out` と `.prev`、`start.log`）を追加。それ以外は本家ロジック不変。
-- 旧パス（`%TEMP%\dsh_out*`）は互換のため残置。
+- `dsh_common.find_token` に現行ランチャーのログ（`%LOCALAPPDATA%\PhronisisDSH/start.out` と `.prev`、`start.log`）を追加。
+- `dsh_common.dismiss_modals` を追加（DSH 0.2 のプレビュー通知モーダル対策）。
+- それ以外は本家ロジック不変。旧パス（`%TEMP%\dsh_out*`）は互換のため残置。
 
 ## 稼働
 
@@ -32,8 +33,9 @@ python scripts/dsh_answer.py -o "選択肢の部分文字列"
 
 ## 既知の状態（2026-11-11）
 
-- 保存本文に `This turn failed ... no configured model "muse-spark-1.3-contributor"` / `UNKNOWN_MODEL` が含まれる。bridge は UI に届くが、DSH側カイは応答不能の可能性。
-- 发送往復（dsh_send → dsh_check）は未検証。DSH側カイの復旧と根本さんの承認が要る。
+- DSH 0.2 のプレビュー通知が `role=dialog` + mask でクリックを遮る。`dsh_common.dismiss_modals()` が起動後に「続ける」を押して閉じる（出現遅延に備えて最大6秒待つ）。
+- 過去の失敗 `UNKNOWN_MODEL "muse-spark-1.3-contributor"` は、モデルを DeepSeek V4.1 Flash に変えて解消。
+- 疎通往復は成立: `dsh_send` → DSH側カイが「OK」→ `dsh_check` で確認（2026-11-11 23:21）。
 
 ## 注意
 

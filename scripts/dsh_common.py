@@ -96,6 +96,34 @@ def _is_new_session_item(txt):
     return "新会话" in t or "New Session" in t
 
 
+async def dismiss_modals(page, timeout_s=6.0):
+    """起動直後に出るモーダル（プレビュー通知など）を閉じる。
+
+    DSH 0.2 のプレビュー通知が role=dialog + mask で操作を遮るため、
+    open_session の前に閉じる。モーダルの出現が遅れることがあるので待つ。
+    """
+    import time
+    start = time.time()
+    while time.time() - start < timeout_s:
+        try:
+            dlg = await page.query_selector('[role="dialog"]')
+            if dlg:
+                for label in ("続ける", "閉じる", "OK", "了解"):
+                    btns = await dlg.query_selector_all("button")
+                    for el in btns:
+                        try:
+                            if (await el.inner_text()).strip() == label:
+                                await el.click(timeout=3000)
+                                await page.wait_for_timeout(700)
+                                return True
+                        except Exception:
+                            pass
+        except Exception:
+            pass
+        await page.wait_for_timeout(400)
+    return False
+
+
 async def open_session(page, session_keyword="", create_new=False):
     """DSHのセッションを開く。
 
@@ -106,6 +134,9 @@ async def open_session(page, session_keyword="", create_new=False):
     - セッションが0件の場合はエラー（新規作成は --new 明示時のみ）
     - create_new=True なら新規作成ボタンをクリックして新規セッションを作る
     """
+    # 起動直後のモーダル（プレビュー通知）がクリックを遮るので先に閉じる
+    await dismiss_modals(page)
+
     if create_new:
         await _click_new_session(page)
         return

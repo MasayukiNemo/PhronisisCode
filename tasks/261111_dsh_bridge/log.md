@@ -9,6 +9,8 @@
 | 2026-11-11 | 4本移植・find_token 適応・Code適応注記 | py_compile 相当（import 確認） |
 | 2026-11-11 | dsh_check.py 実地実行 | DSH UI を開き scratch/dsh_reply.txt（812バイト）に保存 |
 | 2026-11-11 | Yuna/Hayato 三角形チェック | 目的と基準のズレ・DSH側カイの応答不能・差分の集約を指摘→対応 |
+| 2026-11-11 | DSH 0.2 プレビューモーダル対策（dismiss_modals） | UI のクリック遮断を解消 |
+| 2026-11-11 | dsh_send → dsh_check の疎通往復 | DSH側カイが「OK」返答（DeepSeek V4.1 Flash） |
 | 招集判断: 6神にYuna・Hayatoを依頼（三角形チェック）。6神本体は呼ばず（既存スクリプトの移植＋適応＋文書。Kai直接実行） | | |
 
 ## 自己検証（80%とは brief.md 成功基準の必須項目に対するテスト/手動確認の通過率）
