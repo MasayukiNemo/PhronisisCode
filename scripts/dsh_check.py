@@ -23,15 +23,20 @@ UTF-8ファイル（scratch/dsh_reply.txt）に保存して読み取る。
 import argparse
 import sys
 
-from dsh_common import open_session, save_page_text, report_status, build_url
+from dsh_common import open_session, save_page_text, report_status, build_url, check_ledger
 
 
 def main():
     parser = argparse.ArgumentParser(description="DSHの最新応答を確認")
-    parser.add_argument("--session", "-s", default="", help="開くセッション名の部分文字列（省略時は最初のセッション）")
+    parser.add_argument("--uuid", default="", help="開くセッションのUUID（推奨。--session より優先）")
+    parser.add_argument("--session", "-s", default="", help="開くセッション名の部分文字列（互換用）")
+    parser.add_argument("--workspace", default="", help="追加済みのワークスペース名（例: PhronisisDSH）")
+    parser.add_argument("--allow-unlisted", action="store_true", help="台帳外のUUIDを発見手順として許可")
     parser.add_argument("--out", "-o", default="scratch/dsh_reply.txt", help="出力ファイル（UTF-8）")
     parser.add_argument("--url", default="http://127.0.0.1:3080", help="DSH Web UIのURL")
     args = parser.parse_args()
+
+    check_ledger(args.uuid, args.allow_unlisted)
 
     import asyncio
     from playwright.async_api import async_playwright
@@ -45,7 +50,8 @@ def main():
             await page.wait_for_timeout(2000)
 
             try:
-                await open_session(page, session_keyword=args.session)
+                await open_session(page, session_keyword=args.session,
+                                   session_uuid=args.uuid, workspace=args.workspace)
             except LookupError as e:
                 print(f"確認を中止しました: {e}", file=sys.stderr)
                 await browser.close()

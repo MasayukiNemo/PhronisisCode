@@ -20,6 +20,10 @@ import sys
 import os
 import re
 import glob
+import json
+
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+LEDGER_PATH = os.path.join(REPO_ROOT, "knowledge", "code_knowledge", "dsh_sessions.json")
 
 
 def find_token():
@@ -74,6 +78,34 @@ def build_url(base_url="http://127.0.0.1:3080"):
     return base_url
 
 
+def load_ledger():
+    """セッション台帳（knowledge/code_knowledge/dsh_sessions.json）を読む。無ければ空。"""
+    try:
+        with open(LEDGER_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict) and isinstance(data.get("sessions"), list):
+            return data
+    except (OSError, ValueError):
+        pass
+    return {"sessions": []}
+
+
+def ledger_has(uuid):
+    uuid = (uuid or "").strip()
+    if not uuid:
+        return False
+    return any(str(s.get("uuid", "")).strip() == uuid for s in load_ledger().get("sessions", []))
+
+
+def check_ledger(uuid, allow_unlisted=False):
+    """台帳に無いUUIDは、発見手順（--allow-unlisted）以外では拒否する（規則 §1）。"""
+    if not uuid or allow_unlisted:
+        return
+    if not ledger_has(uuid):
+        print(f"エラー: session uuid {uuid} は台帳にありません（先に台帳へ登録するか --allow-unlisted）。", file=sys.stderr)
+        raise LookupError(f"unlisted session: {uuid}")
+
+
 async def _wait_for_session_rows(page, timeout_s=15.0, poll_s=0.5):
     """セッション行が表示されるまでポーリング待機する。
 
@@ -124,18 +156,77 @@ async def dismiss_modals(page, timeout_s=6.0):
     return False
 
 
-async def open_session(page, session_keyword="", create_new=False):
+def _uuid_from_row_key(key):
+    m = re.search(r"session:session-([0-9a-fA-F-]{36})", key or "")
+    return m.group(1) if m else ""
+
+
+async def switch_workspace(page, workspace):
+    """追加済みのワークスペースへ切り替える。見つからなければ LookupError。"""
+    if not workspace:
+        return
+    btn = await page.query_selector('button[aria-label="ワークスペースを選択"]')
+    if btn is None:
+        raise LookupError("workspace selector not found")
+    await btn.click(timeout=5000)
+    await page.wait_for_timeout(800)
+    items = await page.query_selector_all('[role="menuitem"]')
+    for it in items:
+        try:
+            if (await it.inner_text()).strip() == workspace:
+                await it.click(timeout=5000)
+                await page.wait_for_timeout(1200)
+                return
+        except Exception:
+            pass
+    raise LookupError(f"workspace not found (added workspaces only): {workspace}")
+
+
+async def list_sessions(page):
+    """セッション一覧: [{uuid,title,time,selected}]。UUIDが取れない行は uuid=''。"""
+    items = await _wait_for_session_rows(page)
+    out = []
+    for it in items:
+        try:
+            txt = (await it.inner_text()).strip()
+            if _is_new_session_item(txt):
+                continue
+            key = await it.get_attribute("data-row-key")
+            uuid = _uuid_from_row_key(key)
+            title = ""
+            el = await it.query_selector('[class*="title"]')
+            if el is not None:
+                title = (await el.inner_text()).strip()
+            tm = ""
+            el2 = await it.query_selector('[class*="time"]')
+            if el2 is not None:
+                tm = (await el2.inner_text()).strip()
+            cls = (await it.get_attribute("class")) or ""
+            out.append({
+                "uuid": uuid,
+                "title": title or (txt.splitlines()[0] if txt else ""),
+                "time": tm,
+                "selected": "selected" in cls,
+            })
+        except Exception:
+            pass
+    return out
+
+
+async def open_session(page, session_keyword="", create_new=False, session_uuid=None, workspace=None):
     """DSHのセッションを開く。
 
-    - session_keyword が指定されていれば、その部分文字列を含むセッションを開く
-      （複数マッチ時は先頭を選択。DOM順＝表示順）
-    - 指定セッションが見つからない場合はエラー（新規作成はしない。誤送信防止）
-    - session_keyword が空なら、最初のセッション項目（新規作成ボタンを除く）を開く
-    - セッションが0件の場合はエラー（新規作成は --new 明示時のみ）
-    - create_new=True なら新規作成ボタンをクリックして新規セッションを作る
+    Code拡張（2026-11-12、CKai⇄DSH接続規則 v0.2）:
+    - session_uuid: UUIDで開く（推奨）。見つからなければ LookupError。
+    - workspace: 追加済みのワークスペースへ切り替えてから開く。
+    - 宛先未指定（uuid も keyword も無い）は開かない。一覧を出して止める（規則 §2）。
+    - session_keyword は互換のため残す。宛先決定の第一手段にしない。
     """
     # 起動直後のモーダル（プレビュー通知）がクリックを遮るので先に閉じる
     await dismiss_modals(page)
+
+    if workspace:
+        await switch_workspace(page, workspace)
 
     if create_new:
         await _click_new_session(page)
@@ -143,6 +234,17 @@ async def open_session(page, session_keyword="", create_new=False):
 
     # セッション行が表示されるまで待機（新バージョンのレンダリング遅延対策）
     items = await _wait_for_session_rows(page)
+
+    if session_uuid:
+        for it in items:
+            try:
+                key = await it.get_attribute("data-row-key")
+                if _uuid_from_row_key(key) == session_uuid:
+                    await it.click(timeout=10000)
+                    return
+            except Exception:
+                pass
+        raise LookupError(f"session uuid not found: {session_uuid}")
 
     if session_keyword:
         for it in items:
@@ -160,19 +262,11 @@ async def open_session(page, session_keyword="", create_new=False):
         print("セッション名を確認してください（サイドバーのセッション一覧を参照）", file=sys.stderr)
         raise LookupError(f"session not found: {session_keyword}")
 
-    # キーワード未指定: 最初のセッション項目を開く（新規作成ボタンを除外）
-    for it in items:
-        try:
-            txt = (await it.inner_text()).strip()
-            if txt and not _is_new_session_item(txt) and txt.splitlines()[0].strip():
-                await it.click()
-                return
-        except Exception:
-            pass
-    # セッションが0件: 黙って新規作成せず、失敗で止める（--new 明示時のみ新規作成）
-    print("エラー: 開くセッションがありません。", file=sys.stderr)
-    print("セッション名を指定するか、--new を明示してください", file=sys.stderr)
-    raise LookupError("no session available")
+    # 宛先未指定: 開かない（規則 §2）。一覧を出して止める。
+    for s in await list_sessions(page):
+        print(f"  {s['uuid'] or '(uuid?)'}  {s['title']}  {s['time']}", file=sys.stderr)
+    print("エラー: 宛先が未指定です。--uuid で指定してください（--session は互換用）。", file=sys.stderr)
+    raise LookupError("no target session (pass --uuid)")
 
 
 async def _click_new_session(page):

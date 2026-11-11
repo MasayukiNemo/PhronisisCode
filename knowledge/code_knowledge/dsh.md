@@ -15,10 +15,16 @@ DSH はこの端末で稼働する Web UI（127.0.0.1:3080）。DSH 側カイと
 ## 使い方
 
 ```
-python scripts/dsh_send.py -m "本文" [-s セッション名の部分文字列] [--new]
-python scripts/dsh_check.py [-s セッション名] [-o 出力先]
-python scripts/dsh_answer.py -o "選択肢の部分文字列"
+python scripts/dsh_list.py [--workspace PhronisisDSH] [--json]
+python scripts/dsh_send.py -m "本文" --uuid <uuid> [--workspace PhronisisDSH]
+python scripts/dsh_check.py --uuid <uuid> [-o 出力先]
+python scripts/dsh_answer.py -o "選択肢" --uuid <uuid>
 ```
+
+- 宛先は UUID で指定する（接続規則 v0.2 §2）。`--session`（名前部分一致）は互換用。引数なしは開かない（一覧を出して止める）。
+- 台帳に無い UUID は拒否する。発見手順のみ `--allow-unlisted`。
+- 台帳: `knowledge/code_knowledge/dsh_sessions.json`
+- 接続規則: `knowledge/code_knowledge/dsh_connection_rules.md`
 
 ## Code適応（2026-11-11）
 

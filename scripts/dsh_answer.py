@@ -24,7 +24,7 @@ PhronisisDSH の Web UI（127.0.0.1:3080）で、DSH側Kaiが「Ask the user」�
 import argparse
 import sys
 
-from dsh_common import open_session, build_url
+from dsh_common import open_session, build_url, check_ledger
 
 
 async def _find_submit_button(page):
@@ -69,9 +69,14 @@ async def _answer_accepted(page, submit_el, timeout_ms=5000):
 def main():
     parser = argparse.ArgumentParser(description="DSHのAsk the user質問に回答")
     parser.add_argument("--option", "-o", required=True, help="選択する選択肢の部分文字列（例: 修正する）")
-    parser.add_argument("--session", "-s", default="", help="開くセッション名の部分文字列（省略時は最初のセッション）")
+    parser.add_argument("--uuid", default="", help="開くセッションのUUID（推奨。--session より優先）")
+    parser.add_argument("--session", "-s", default="", help="開くセッション名の部分文字列（互換用）")
+    parser.add_argument("--workspace", default="", help="追加済みのワークスペース名（例: PhronisisDSH）")
+    parser.add_argument("--allow-unlisted", action="store_true", help="台帳外のUUIDを発見手順として許可")
     parser.add_argument("--url", default="http://127.0.0.1:3080", help="DSH Web UIのURL")
     args = parser.parse_args()
+
+    check_ledger(args.uuid, args.allow_unlisted)
 
     import asyncio
     from playwright.async_api import async_playwright
@@ -85,7 +90,8 @@ def main():
             await page.wait_for_timeout(2000)
 
             try:
-                await open_session(page, session_keyword=args.session)
+                await open_session(page, session_keyword=args.session,
+                                   session_uuid=args.uuid, workspace=args.workspace)
             except LookupError as e:
                 print(f"回答を中止しました: {e}", file=sys.stderr)
                 await browser.close()
