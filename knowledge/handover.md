@@ -36,6 +36,7 @@ hooks/                              # pre-commit/pre-push + python_run.sh/utf8_c
 | 2026-11-10 | note_extract_gas.py 追補移植 | 本家 commit eeada168 の note.com抽出CLI（GASプロキシ経由・BeautifulSoup）を追加移植。URL検証を host allowlist（https・note.com / www.note.com）に強化、--out をリポジトリ内に制限。note.com取得の既定は本CLI、note_fetch.py は退場先。task: tasks/261110_note_extract_gas |
 | 2026-11-10 | モコ⇔Kai(Code) 手紙回線 開設 | 本家 moko-kai と並列の回線を Box moko-code に。本家橋をコピーし Code 向け適応（別鍵・別 state・from=code・通知文）。条約付録D（案）で開発依頼を信頼着手（push 可）。Core 側は厳禁。task: tasks/261110_moko_code |
 | 2026-11-10 | モコ回線で開発依頼2件を完走 | 付録D初回（パズルゲーム・minesweeper.html）と第2回（お助け探知機・minesweeper_v2.html）を納品・検品合格。v1は残り爆弾表示の修正込み。task: tasks/261110_puzzle_game, tasks/261110_minesweeper_v2 |
+| 2026-11-11 | DSH bridge 取込 | 本家の dsh_*.py 4本を Code に移植。トークン検出を現行ランチャー（LOCALAPPDATA配下）に適応。dsh_check.py で実地確認。task: tasks/261111_dsh_bridge |
 
 ## 残課題
 

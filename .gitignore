@@ -22,3 +22,5 @@ tasks/*/poc2/out/
 Gdrive_code/
 # 手紙回線の受信箱（letterは作業ファイル。鍵・stateはrepo外）
 _inbox/
+# DSH bridge の応答保存先（作業ファイル）
+scratch/*.txt

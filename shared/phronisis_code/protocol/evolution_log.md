@@ -76,3 +76,10 @@
 - 分離: Core 側（repo, moko-kai, Core の鍵・状態）は厳禁。別フォルダ・別鍵・別 state・別橋
 - 通知: まだモコに通知しない（根本さん指示）
 - task: tasks/261110_moko_code
+
+## DSH bridge 取込 (2026-11-11)
+
+- 本家 PhronisisCore の scripts/dsh_common.py / dsh_send.py / dsh_check.py / dsh_answer.py を Code に移植
+- 適応: dsh_common.find_token に現行ランチャーのログ（%LOCALAPPDATA%\PhronisisDSH\start.out と .prev）を追加
+- 検証: dsh_check.py が DSH UI を開いて本文保存（scratch/dsh_reply.txt）まで確認
+- task: tasks/261111_dsh_bridge
