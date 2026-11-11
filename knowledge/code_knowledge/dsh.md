@@ -43,6 +43,15 @@ python scripts/dsh_answer.py -o "選択肢" --uuid <uuid>
 - 過去の失敗 `UNKNOWN_MODEL "muse-spark-1.3-contributor"` は、モデルを DeepSeek V4.1 Flash に変えて解消。
 - 疎通往復は成立: `dsh_send` → DSH側カイが「OK」→ `dsh_check` で確認（2026-11-11 23:21）。
 
+## 疎通テスト結果（2026-11-12）
+
+- UUIDピン留め: PASS。`--uuid` で正しいセッションを開く（f567c0cb）。台帳外・存在しない UUID は拒否し、名前一致へフォールバックしない。
+- 新規/継続: 継続は PASS（UUID）。新規（`--new`）は部分PASS。メッセージは空セッションに届くが、DSHのdraft設計により「新規ボタンが作る空セッション」と「実際に送信される空セッション」が1つずれる。`--new` の後は実送信先の UUID を確認して台帳に登録する。
+- ワークスペース: PASS（PhronisisDSH）。未追加の PhronisisCode は拒否（追加済みのみ）。
+- relay定型: PASS。定型で送信 → 「受領」が原文で返る。
+- 失敗系: 部分PASS。開けない宛先・台帳外UUIDは止めて報告（名前一致に逃げない）。失敗文言の自動検知は未実装（本文を読む）。
+- モデル: LongCat 2.5 Free（セッション設定。変更されうる）。
+
 ## 注意
 
 - DSH UI は共有リソース（DSH側カイ）。乱打しない

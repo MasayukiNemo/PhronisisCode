@@ -269,6 +269,29 @@ async def open_session(page, session_keyword="", create_new=False, session_uuid=
     raise LookupError("no target session (pass --uuid)")
 
 
+async def _wait_for_new_session(page, timeout_s=8.0):
+    """新規セッションが選ばれるまで待つ（選択行のタイトルが「新しいセッション」）。
+
+    クリック直後に送信すると、UIの切り替えが終わる前の旧セッションに送ってしまう
+    ことがあるため（2026-11-12 の実測）、送信前に選択状態を確認する。
+    """
+    import time
+    start = time.time()
+    while time.time() - start < timeout_s:
+        try:
+            items = await page.query_selector_all('[class*="sessionRow"]')
+            for it in items:
+                cls = (await it.get_attribute("class")) or ""
+                if "selected" in cls:
+                    txt = (await it.inner_text()).strip()
+                    if "新しいセッション" in txt or "New Session" in txt:
+                        return True
+        except Exception:
+            pass
+        await page.wait_for_timeout(300)
+    return False
+
+
 async def _click_new_session(page):
     """新規作成ボタンをクリック。両バージョンの文言（新会话 / New Session）に対応"""
     buttons = await page.query_selector_all("button")
@@ -277,6 +300,7 @@ async def _click_new_session(page):
             txt = (await b.inner_text()).strip()
             if txt == "新会话" or txt == "New Session" or "新会话" in txt or "New Session" in txt:
                 await b.click()
+                await _wait_for_new_session(page)
                 return
         except Exception:
             pass
@@ -287,6 +311,7 @@ async def _click_new_session(page):
             txt = (await it.inner_text()).strip()
             if _is_new_session_item(txt):
                 await it.click()
+                await _wait_for_new_session(page)
                 return
         except Exception:
             pass

@@ -13,6 +13,8 @@
 | 2026-11-11 | dsh_send → dsh_check の疎通往復 | DSH側カイが「OK」返答（DeepSeek V4.1 Flash） |
 | 2026-11-12 | 接続規則 v0.2（モコ下書き・CKai査読）と bridge 拡張 | --uuid / --list / --workspace / 台帳チェックを実装。dsh_list.py 追加 |
 | 2026-11-12 | 実測 | dsh_list で UUID 取得、dsh_check --uuid で正しいセッションを開く、台帳外 UUID は拒否 |
+| 2026-11-12 | 疎通テスト5項目（モコ依頼） | UUID PASS / 新規 部分PASS / workspace PASS / relay PASS / 失敗系 部分PASS |
+| 2026-11-12 | 実物を Box moko-code/dsh/ に配置 | dsh_*.py 5本 + dsh_sessions.json + dsh_connection_rules.md |
 | 招集判断: 6神にYuna・Hayatoを依頼（三角形チェック）。6神本体は呼ばず（既存スクリプトの移植＋適応＋文書。Kai直接実行） | | |
 
 ## 自己検証（80%とは brief.md 成功基準の必須項目に対するテスト/手動確認の通過率）
