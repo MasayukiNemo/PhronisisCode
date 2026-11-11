@@ -25,6 +25,16 @@ import json
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LEDGER_PATH = os.path.join(REPO_ROOT, "knowledge", "code_knowledge", "dsh_sessions.json")
 
+# 接続カード（v0.2）。正本は dsh_connection_rules.md。DSH側には読み取り専用で置く。
+CARD_TEXT = (
+    "CKai⇄DSH 接続カード v0.2（読み取り専用）\n"
+    "- 題材がメッセージに無ければ、ワークスペース内を探索せず、質問で返す。\n"
+    "- 返答は依頼で指定された形式（原文のまま）を守る。\n"
+    "- 明示の指示がない限り、ファイルを編集・削除しない。\n"
+    "- 曖昧な指示は、対象と意図を確認してから着手する。\n"
+    "- 存在しない対象は「存在しない」と返し、捏造しない。\n"
+)
+
 
 def find_token():
     """DSH Web UI のアクセストークンを起動ログから検出する。

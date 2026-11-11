@@ -22,7 +22,7 @@ PhronisisDSH の Web UI（127.0.0.1:3080）で動作している DSH側Kai に�
 import argparse
 import sys
 
-from dsh_common import open_session, build_url, check_ledger
+from dsh_common import open_session, build_url, check_ledger, CARD_TEXT
 
 
 def _read_message(args):
@@ -66,11 +66,14 @@ def main():
     parser.add_argument("--workspace", default="", help="追加済みのワークスペース名（例: PhronisisDSH）")
     parser.add_argument("--allow-unlisted", action="store_true", help="台帳外のUUIDを発見手順として許可")
     parser.add_argument("--new", action="store_true", help="新規セッションを作成して送信")
+    parser.add_argument("--card", action="store_true", help="セッション開始時に接続カード（v0.2）を前置する")
     parser.add_argument("--url", default="http://127.0.0.1:3080", help="DSH Web UIのURL")
     args = parser.parse_args()
 
     check_ledger(args.uuid, args.allow_unlisted)
     message = _read_message(args)
+    if args.card:
+        message = CARD_TEXT + "\n---\n\n" + message
     if not message.strip():
         print("エラー: メッセージが空です", file=sys.stderr)
         sys.exit(1)
