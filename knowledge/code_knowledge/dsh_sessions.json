@@ -161,6 +161,24 @@
       "updated": "2026-11-12T07:15:00+09:00",
       "handover_ref": null,
       "last_failure": null
+    },
+    {
+      "uuid": "6a72361b-53a7-48a8-a758-fb5725ef23c9",
+      "workspace": "PhronisisDSH",
+      "agent_preset": "標準モード",
+      "model": "DeepSeek V4.1 Flash",
+      "wake_word": true,
+      "onboarding": "full",
+      "title": "CKai⇄DSH 接続カード注入テスト（3体対話）",
+      "task": {
+        "thread_id": "dsh-3body-dialogue-test-20261112",
+        "task_id": "261111_dsh_bridge",
+        "note": "3体対話テストのDSH側セッション（起動ワード）"
+      },
+      "state": "open",
+      "updated": "2026-11-12T07:55:00+09:00",
+      "handover_ref": null,
+      "last_failure": "2026-11-12 07:49 LongCat 2.5 Free のレートリミット（429）→ 根本さんが DeepSeek V4.1 Flash に変更 → リトライ。T1〜T5 は LongCat 前提の実測のため、モデル変更は D 回帰の対象"
     }
   ]
 }
