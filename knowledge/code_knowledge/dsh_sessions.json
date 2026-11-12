@@ -179,6 +179,29 @@
       "updated": "2026-11-12T07:55:00+09:00",
       "handover_ref": null,
       "last_failure": "2026-11-12 07:49 LongCat 2.5 Free のレートリミット（429）→ 根本さんが DeepSeek V4.1 Flash に変更 → リトライ。T1〜T5 は LongCat 前提の実測のため、モデル変更は D 回帰の対象"
+    },
+    {
+      "uuid": "c023007f-4eff-4c10-8c8f-fd2b107207ca",
+      "workspace": "PhronisisDSH",
+      "agent_preset": "標準モード",
+      "model": "DeepSeek V4.1 Flash",
+      "wake_word": false,
+      "onboarding": "full",
+      "title": "3体対話テスト第2回（指名リレー）",
+      "task": {
+        "thread_id": "dsh-3body-dialogue-test2-20261112",
+        "task_id": "261112_dsh_3body",
+        "note": "指名リレー形式の第2回。CKaiが編成し、最終テキストをモコへ納品する"
+      },
+      "base": {
+        "note": "DSHの知識・基盤を根本さんが最新のフロニシス相当に更新済み。第1回（2026-11-12 午前、Phase 1までの半身・DeepSeek版）の記録とは前提が異なる 実測: セッションは DeepSeek V4.1 Flash で動作。",
+        "updated_by": "root",
+        "recorded_at": "2026-11-12T23:15:00+09:00"
+      },
+      "state": "open",
+      "updated": "2026-11-12T23:15:00+09:00",
+      "handover_ref": null,
+      "last_failure": null
     }
   ],
   "judgments": [
