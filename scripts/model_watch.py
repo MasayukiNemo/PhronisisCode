@@ -71,10 +71,19 @@ def collect(models):
                 "context": int(limit.get("context") or 0),
                 "output": int(limit.get("output") or 0),
                 "status": model.get("status"),
+                "enabled": bool(model.get("enabled", False)),
+                "tools": bool(caps.get("tools")),
             }
         )
     rows.sort(key=lambda r: (not r["free"], -r["context"], r["cost_in"]))
     return rows
+
+
+def fmt_cost(value):
+    """0 と 0.0 を統一する（整数なら整数で出す）。"""
+    if float(value) == int(value):
+        return str(int(value))
+    return f"{value:g}"
 
 
 def markdown(rows, min_context):
@@ -83,27 +92,36 @@ def markdown(rows, min_context):
     lines = ["# OpenCode モデル候補表", ""]
 
     lines += ["## 無料モデル（cost=0）", ""]
-    lines.append("| provider | model | name | cost in/out | context | output |")
-    lines.append("|---|---|---|---|---|---|")
+    lines.append("| provider | model | name | cost in/out | context | output | status | tools |")
+    lines.append("|---|---|---|---|---|---|---|---|")
     for r in free:
         lines.append(
-            f"| {r['provider']} | {r['model']} | {r['name']} | 0 / 0 | {r['context']:,} | {r['output']:,} |"
+            f"| {r['provider']} | {r['model']} | {r['name']} | {fmt_cost(r['cost_in'])} / {fmt_cost(r['cost_out'])} | "
+            f"{r['context']:,} | {r['output']:,} | {r['status']} | {'yes' if r['tools'] else 'no'} |"
         )
     if not free:
-        lines.append("| - | - | - | - | - | - |")
+        lines.append("| - | - | - | - | - | - | - | - |")
 
     lines += ["", f"## 大文脈モデル（context >= {min_context:,}）", ""]
-    lines.append("| provider | model | name | cost in/out | context | output | free |")
-    lines.append("|---|---|---|---|---|---|---|")
+    lines.append("| provider | model | name | cost in/out | context | output | free | status | tools |")
+    lines.append("|---|---|---|---|---|---|---|---|---|")
     for r in large:
         lines.append(
-            f"| {r['provider']} | {r['model']} | {r['name']} | {r['cost_in']} / {r['cost_out']} | "
-            f"{r['context']:,} | {r['output']:,} | {'yes' if r['free'] else ''} |"
+            f"| {r['provider']} | {r['model']} | {r['name']} | {fmt_cost(r['cost_in'])} / {fmt_cost(r['cost_out'])} | "
+            f"{r['context']:,} | {r['output']:,} | {'yes' if r['free'] else ''} | {r['status']} | {'yes' if r['tools'] else 'no'} |"
         )
     if not large:
-        lines.append("| - | - | - | - | - | - | - |")
+        lines.append("| - | - | - | - | - | - | - | - | - |")
 
-    lines += ["", "## 注", "", "- キャンペーン期間は API に出ない。公式X（@opencode）が一次情報。", "- 切り替えは自動でしない。大きな開発の前に候補として検討する。"]
+    lines += [
+        "",
+        "## 注",
+        "",
+        "- enabled=true / tools=true / type=chat のみを載せている。",
+        "- 同一モデルが2 provider に出る場合は provider 別に行を立てる（例: beam-free は opencode と opencode-go の両方）。",
+        "- キャンペーン期間は API に出ない。公式X（@opencode）が一次情報。",
+        "- 切り替えは自動でしない。大きな開発の前に候補として検討する。",
+    ]
     return "\n".join(lines) + "\n"
 
 
