@@ -199,9 +199,10 @@
         "recorded_at": "2026-11-12T23:15:00+09:00"
       },
       "state": "open",
-      "updated": "2026-11-12T23:15:00+09:00",
+      "updated": "2026-11-13T00:12:00+09:00",
       "handover_ref": null,
-      "last_failure": null
+      "last_failure": null,
+      "wrapper": "第2回: 5手成立、収れん（異議なし）、感想2体を納品。最終テキスト final_text.md"
     }
   ],
   "judgments": [
