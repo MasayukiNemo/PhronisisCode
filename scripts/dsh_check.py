@@ -4,14 +4,14 @@ Code適応注記:
 - 出典: 本家 PhronisisCore scripts/dsh_check.py から移植（2026-11-11）。ロジック不変。
 - 詳細は knowledge/code_knowledge/dsh.md を参照。
 
-PhronisisDSH の Web UI（127.0.0.1:3080）で動作している DSH側Kai の最新応答を、
+PhronisisDSH の Web UI（127.0.0.1:3080）で動作している DKai（DSH側カイ）の最新応答を、
 UTF-8ファイル（scratch/dsh_reply.txt）に保存して読み取る。
 
 使い方:
   python scripts/dsh_check.py [--session "セッション名の部分文字列"] [--out "出力ファイル"]
 
 注意:
-  - DSH側Kaiとの会話は「送信（dsh_send.py）→ 応答の確認（本スクリプト）」で1往復が完了する。
+  - DKaiとの会話は「送信（dsh_send.py）→ 応答の確認（本スクリプト）」で1往復が完了する。
     送信したら必ず本スクリプトで相手の応答を読むこと（完了 = 相手の応答の確認）
   - 保存されたファイルを Read で読むことが完了判定。state 表示は参考（ページ全体の
     キーワード走査であり、生成中でもサイドバー表示によっては誤る場合がある）

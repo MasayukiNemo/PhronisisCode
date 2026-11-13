@@ -214,5 +214,11 @@
       "session": null,
       "note": "2026-11-12 訂正: 止まった表面はCKaiのopencodeコンソール（根本さんの目撃）。質問の発生源はDSH側カイ。seq 68 の切り分けを訂正。改修内容（カード1行＋CKaiが質問をモコへ回す）は不变。"
     }
-  ]
+  ],
+  "naming": {
+    "decided_at": "2026-11-14T00:50:28+09:00",
+    "source": "根本さん決定、モコ経由の手紙 cbe4f6d8",
+    "rule": "CoreのKai=無印カイ（区別時は本家カイ）／Code側=CKai／DSH側=DKai。略記 CK/DK は CKai/DKai。",
+    "apply": "新規の記録からDKai。過去の記録は書き換えない。接続カードの文面は変更しない。"
+  }
 }

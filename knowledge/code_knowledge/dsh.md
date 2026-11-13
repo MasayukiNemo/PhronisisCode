@@ -1,6 +1,13 @@
 # DSH（DeepSeek Harness）bridge
 
-DSH はこの端末で稼働する Web UI（127.0.0.1:3080）。DSH 側カイと対話する。本家 PhronisisCore の bridge を Code に移植済み（2026-11-11）。
+DSH はこの端末で稼働する Web UI（127.0.0.1:3080）。DKai（DSH 側カイ）と対話する。本家 PhronisisCore の bridge を Code に移植済み（2026-11-11）。
+
+## 呼称（2026-11-14 根本さん決定、モコ経由）
+
+- Core の Kai は無印の「カイ」（区別が要るときだけ「本家カイ」）。
+- Code 側は「CKai」。
+- DSH 側は「DKai」（略記 DK も同じ）。根本さんの指示文の「CK」「DK」は CKai／DKai を指す。
+- 新規の記録からこの表記に揃える。過去の記録は書き換えない。接続カードの文面は変更しない。
 
 ## 構成
 
@@ -122,9 +129,22 @@ python scripts/dsh_answer.py -o "選択肢" --uuid <uuid>
 - 根本さんの見立て: 「うまく組み合わせれば知能とトークン節約が両立する」。
 - 台帳の `model` 欄に記録する（§10 の軽微な運用メモとして項目追加）。
 
+## エージェント同士の会話の可否（2026-11-14 調査）
+
+- OpenCode 側: セッション API で ID 指定の外部注入ができる（実証済み）。
+  - `GET /api/session`（一覧）／`GET /api/session/{id}`（詳細）／`GET /api/session/{id}/message`（全メッセージ）／`POST /api/session/{id}/prompt {text, resume, metadata}`（注入）。
+  - `moko_letter_bridge.py` の `prompt_session()` がこの POST を使っている（本番稼働中）。
+  - CLI: `opencode run -s <id>`（継続）／`opencode run`（新規）／`--format json`／`--fork`。
+  - 未検証: REST でのセッション新規作成（POST /api/session）。
+- DSH rc.2 の AgentTeam: 親→子の委派（subagent / subagent_fork）＋共有タスクボード＋メンバー間メッセージ（`list_agents` / `send_message`、cold restoration）。
+  - 範囲は同一ツリー・同一プロセス内。別セッション・別ワークスペース・OpenCode 側のエージェントとは交われない。
+  - 深さは `maxDepth`（subagent 既定は 1。告知の二級委派は上限 2）。これは委派の階層で、対話の深さではない。
+- 結論: 3体構成（モコ・CKai・DKai、別プロセス・別ベンダー）は rc.2 でも置き換わらない。手紙リレーは残る。API 直結にできるのは同一アプリ内だけ。
+- 多体リレーに広げる際の留保: コストの掛け算／ループの停止条件／送受の台帳／DSH に認証情報を渡さない（CKai が両側を回す）。
+
 ## 注意
 
-- DSH UI は共有リソース（DSH側カイ）。乱打しない
+- DSH UI は共有リソース（DKai）。乱打しない
 - 送信 → 応答確認で1往復。完了は応答の確認
 - 応答は `scratch/dsh_reply.txt` を Read で読む（cp932対策）
 - トークンが見つからない場合は `%LOCALAPPDATA%\PhronisisDSH\start.out` と `.prev` を確認

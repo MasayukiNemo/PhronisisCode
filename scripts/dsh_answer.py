@@ -4,7 +4,7 @@ Code適応注記:
 - 出典: 本家 PhronisisCore scripts/dsh_answer.py から移植（2026-11-11）。ロジック不変。
 - 詳細は knowledge/code_knowledge/dsh.md を参照。
 
-PhronisisDSH の Web UI（127.0.0.1:3080）で、DSH側Kaiが「Ask the user」で択一質問を
+PhronisisDSH の Web UI（127.0.0.1:3080）で、DKai（DSH側カイ）が「Ask the user」で択一質問を
 投げている場合に、選択肢をクリックして回答（提交）する。
 
 使い方:

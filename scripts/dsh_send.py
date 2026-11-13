@@ -4,7 +4,7 @@ Code適応注記:
 - 出典: 本家 PhronisisCore scripts/dsh_send.py から移植（2026-11-11）。ロジック不変。
 - 詳細は knowledge/code_knowledge/dsh.md を参照。
 
-PhronisisDSH の Web UI（127.0.0.1:3080）で動作している DSH側Kai にメッセージを送る。
+PhronisisDSH の Web UI（127.0.0.1:3080）で動作している DKai（DSH側カイ）にメッセージを送る。
 
 使い方:
   python scripts/dsh_send.py --message "本文" [--session "セッション名の部分文字列"] [--new]
