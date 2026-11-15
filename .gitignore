@@ -26,3 +26,5 @@ _inbox/
 scratch/*.txt
 # 検体14号の作業パッケージ（zip・venv・hf-cache・生成物。重いのでコミットしない）
 scratch/specimen014/
+# 検体9号の作業パッケージ（zip・入力データ・生成物。重いのでコミットしない）
+scratch/specimen009/
