@@ -24,3 +24,5 @@ Gdrive_code/
 _inbox/
 # DSH bridge の応答保存先（作業ファイル）
 scratch/*.txt
+# 検体14号の作業パッケージ（zip・venv・hf-cache・生成物。重いのでコミットしない）
+scratch/specimen014/
