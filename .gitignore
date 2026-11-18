@@ -28,3 +28,5 @@ scratch/*.txt
 scratch/specimen014/
 # 検体9号の作業パッケージ（zip・入力データ・生成物。重いのでコミットしない）
 scratch/specimen009/
+# yt-dlp 実地テスト（venv・取得物。重いのでコミットしない）
+scratch/ytdlp_test/
