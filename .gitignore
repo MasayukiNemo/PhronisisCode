@@ -30,3 +30,5 @@ scratch/specimen014/
 scratch/specimen009/
 # yt-dlp 実地テスト（venv・取得物。重いのでコミットしない）
 scratch/ytdlp_test/
+# yt_collect の試験出力
+scratch/yt_collect_test/
