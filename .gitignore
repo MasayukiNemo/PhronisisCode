@@ -32,3 +32,5 @@ scratch/specimen009/
 scratch/ytdlp_test/
 # yt_collect の試験出力
 scratch/yt_collect_test/
+scratch/yt_collect_check/
+scratch/yt_collect_zero/

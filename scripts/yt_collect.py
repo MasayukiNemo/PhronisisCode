@@ -73,7 +73,9 @@ def list_ids(yt_dlp, url, sleep, tmp_path, log_path):
     with io.open(tmp_path, encoding="utf-8", errors="replace") as handle:
         for line in handle:
             value = line.strip()
-            if value and not value.startswith("["):
+            # yt-dlp のログ行（WARNING:/ERROR: など）を ID と取り違えない。
+            # YouTube の動画 ID は 11 文字の [A-Za-z0-9_-]。
+            if len(value) == 11 and all(c.isalnum() or c in "_-" for c in value):
                 ids.append(value)
     with io.open(log_path, "a", encoding="utf-8") as handle:
         handle.write(f"# listed {len(ids)} ids\n")
