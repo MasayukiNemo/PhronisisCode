@@ -28,11 +28,13 @@ import csv
 import io
 import json
 import os
+import string
 import subprocess
 import sys
 import time
 
 META_FIELDS = "%(id)s\t%(upload_date)s\t%(duration)s\t%(title)j\t%(description)j"
+ID_CHARS = set(string.ascii_letters + string.digits + "_-")
 
 
 def log(path, message):
@@ -74,8 +76,8 @@ def list_ids(yt_dlp, url, sleep, tmp_path, log_path):
         for line in handle:
             value = line.strip()
             # yt-dlp のログ行（WARNING:/ERROR: など）を ID と取り違えない。
-            # YouTube の動画 ID は 11 文字の [A-Za-z0-9_-]。
-            if len(value) == 11 and all(c.isalnum() or c in "_-" for c in value):
+            # YouTube の動画 ID は 11 文字の [A-Za-z0-9_-]（ASCII のみ）。
+            if len(value) == 11 and all(c in ID_CHARS for c in value):
                 ids.append(value)
     with io.open(log_path, "a", encoding="utf-8") as handle:
         handle.write(f"# listed {len(ids)} ids\n")
