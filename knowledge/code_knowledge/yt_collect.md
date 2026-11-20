@@ -43,3 +43,12 @@ python scripts/yt_collect.py --channel "https://www.youtube.com/@handle" --out D
 - yt-dlp は「JS ランタイムが無い」と警告する。メタデータと字幕は通る。動画本体を取る段階では deno が要る
 - 字幕は自動生成なので固有名詞の誤変換がある（例: ちりつも → チり立つ）。原音との突き合わせが要る箇所がある
 - 恒常ジョブにはしていない。回すのは依頼があったとき
+
+## 付属: vtt_to_text.py（字幕VTT→平文）
+
+- 使い方: python scripts/vtt_to_text.py INPUT.vtt OUTPUT.txt [--mode manual|auto|detect] [--lang ja|en|detect]
+- mode=auto は、前の行を繰り返す自動字幕の重複を差し引いて連結する
+- mode=manual は、キューの複数行を1文として扱う（手動字幕向け）
+- detect は、インライン時刻タグの有無で自動／手動を判定する
+- lang は空白の入れ方と段落の切り方。英語は語間を空け、文末で段落を切る
+- 実績: バッファロー決算説明会（自動 ja、14,888字）と AI harness crash course（手動 en-US、8,967字・1,596語）
